@@ -2,7 +2,7 @@ name: Foresignal Daily Scrape
 
 on:
   schedule:
-    - cron: "*/5 * * * *"  # daily 01:05 UTC
+    - cron: "*/3 * * * *"  # daily 01:05 UTC
   workflow_dispatch: {}
 
 permissions:
