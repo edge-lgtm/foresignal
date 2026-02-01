@@ -333,27 +333,45 @@ def compute_win_rate() -> tuple[str, dict]:
     if not TRADES_LOG_FILE.exists():
         return "No closed trades yet.", per_pair
 
+    def consume_trade(obj: dict) -> None:
+        nonlocal wins, losses, per_pair
+        pair = obj.get("pair")
+        pips = obj.get("pips")
+        if pair is None or pips is None:
+            return
+
+        per_pair.setdefault(pair, {"wins": 0, "losses": 0})
+        if pips > 0:
+            wins += 1
+            per_pair[pair]["wins"] += 1
+        elif pips < 0:
+            losses += 1
+            per_pair[pair]["losses"] += 1
+
     with TRADES_LOG_FILE.open("r", encoding="utf-8") as f:
         for line in f:
+            line = line.strip()
+            if not line:
+                continue
             try:
                 obj = json.loads(line)
             except Exception:
                 continue
-            pair = obj.get("pair")
-            pips = obj.get("pips")
-            if pair is None or pips is None:
-                continue
 
-            per_pair.setdefault(pair, {"wins": 0, "losses": 0})
-            if pips > 0:
-                wins += 1
-                per_pair[pair]["wins"] += 1
-            elif pips < 0:
-                losses += 1
-                per_pair[pair]["losses"] += 1
+            # ✅ handle both formats:
+            if isinstance(obj, dict):
+                consume_trade(obj)
+            elif isinstance(obj, list):
+                for item in obj:
+                    if isinstance(item, dict):
+                        consume_trade(item)
 
     total = wins + losses
-    overall = f"Wins: {wins} | Losses: {losses} | Win rate: {((wins/total)*100):.1f}%" if total else "No wins/losses yet."
+    overall = (
+        f"Wins: {wins} | Losses: {losses} | Win rate: {((wins/total)*100):.1f}%"
+        if total else
+        "No wins/losses yet."
+    )
 
     for pair, d in per_pair.items():
         t = d["wins"] + d["losses"]
