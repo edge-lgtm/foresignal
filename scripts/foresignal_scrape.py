@@ -10,7 +10,8 @@ from zoneinfo import ZoneInfo
 
 import requests
 from bs4 import BeautifulSoup
-
+from email.message import EmailMessage
+import smtplib
 # ---------------- CONFIG ----------------
 URL = "https://foresignal.com/en/"
 TZ = ZoneInfo("Asia/Manila")
@@ -26,7 +27,34 @@ MAP = "670429+-. 5,813"
 NUM_RE = re.compile(r"[-+]?\d+(?:\.\d+)?")
 F_ENC_RE = re.compile(r"f\(\s*'([^']+)'\s*\)")
 HHMM_RE = re.compile(r"hhmm\((\d+)\)")  # unix seconds inside hhmm(....)
+def post_to_blogger(subject: str, html_body: str) -> None:
+    to_addr = os.getenv("BLOGGER_POST_EMAIL")
+    smtp_host = os.getenv("SMTP_HOST", "smtp.gmail.com")
+    smtp_port = int(os.getenv("SMTP_PORT", "587"))
+    smtp_user = os.getenv("SMTP_USER")
+    smtp_pass = os.getenv("SMTP_PASS")
 
+    if not to_addr:
+        print("Blogger email not configured. Set BLOGGER_POST_EMAIL.")
+        return
+    if not smtp_user or not smtp_pass:
+        print("SMTP not configured. Set SMTP_USER and SMTP_PASS.")
+        return
+
+    msg = EmailMessage()
+    msg["From"] = smtp_user
+    msg["To"] = to_addr
+    msg["Subject"] = subject
+
+    # Blogger accepts HTML email content for posts.
+    msg.set_content("This post requires an HTML-capable email client.")
+    msg.add_alternative(html_body, subtype="html")
+
+    with smtplib.SMTP(smtp_host, smtp_port, timeout=30) as s:
+        s.ehlo()
+        s.starttls()
+        s.login(smtp_user, smtp_pass)
+        s.send_message(msg)
 # ---------------- DATA MODEL ----------------
 @dataclass
 class Signal:
@@ -625,6 +653,8 @@ def main() -> None:
 
     # Send Telegram (only because change/expired happened)
     send_telegram_html(report)
+    subject = f"Foresignal Update - {datetime.now(TZ).strftime('%Y-%m-%d %H:%M')} (UTC+8)"
+    post_to_blogger(subject=subject, html_body=report)
     print("Telegram sent.")
     print(report)
 
