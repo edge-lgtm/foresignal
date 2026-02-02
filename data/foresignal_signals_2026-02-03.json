@@ -1,6 +1,6 @@
 {
   "source": "foresignal.com",
-  "pulled_at": "2026-02-03T03:15:33+08:00",
+  "pulled_at": "2026-02-03T03:25:32+08:00",
   "signals": [
     {
       "pair": "AUD/USD",
@@ -18,7 +18,7 @@
     },
     {
       "pair": "EUR/JPY",
-      "status": "Sell",
+      "status": "Cancelled",
       "from_ts": 1770045780,
       "till_ts": 1770060180,
       "sell_at": "183.79",
