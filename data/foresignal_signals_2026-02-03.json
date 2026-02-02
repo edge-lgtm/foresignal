@@ -1,6 +1,6 @@
 {
   "source": "foresignal.com",
-  "pulled_at": "2026-02-03T01:25:35+08:00",
+  "pulled_at": "2026-02-03T01:40:35+08:00",
   "signals": [
     {
       "pair": "AUD/USD",
@@ -74,17 +74,17 @@
     },
     {
       "pair": "NZD/USD",
-      "status": "",
-      "from_ts": null,
-      "till_ts": null,
+      "status": "Buy",
+      "from_ts": 1770053100,
+      "till_ts": 1770067500,
       "sell_at": "",
-      "buy_at": "",
+      "buy_at": "0.6001",
       "bought_at": "",
       "sold_at": "",
-      "take_profit_at": "",
-      "stop_loss_at": "",
+      "take_profit_at": "0.6019",
+      "stop_loss_at": "0.5979",
       "pips": null,
-      "key": "NZD/USD|0|0"
+      "key": "NZD/USD|1770053100|1770067500"
     },
     {
       "pair": "USD/CAD",
