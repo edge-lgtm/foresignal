@@ -1,6 +1,6 @@
 {
   "source": "foresignal.com",
-  "pulled_at": "2026-02-03T01:40:35+08:00",
+  "pulled_at": "2026-02-03T01:45:32+08:00",
   "signals": [
     {
       "pair": "AUD/USD",
@@ -88,17 +88,17 @@
     },
     {
       "pair": "USD/CAD",
-      "status": "Cancelled",
-      "from_ts": 1770035340,
-      "till_ts": 1770049740,
+      "status": "",
+      "from_ts": null,
+      "till_ts": null,
       "sell_at": "",
-      "buy_at": "1.3627",
+      "buy_at": "",
       "bought_at": "",
       "sold_at": "",
-      "take_profit_at": "1.3662",
-      "stop_loss_at": "1.3584",
+      "take_profit_at": "",
+      "stop_loss_at": "",
       "pips": null,
-      "key": "USD/CAD|1770035340|1770049740"
+      "key": "USD/CAD|0|0"
     },
     {
       "pair": "USD/CHF",
