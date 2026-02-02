@@ -1,6 +1,6 @@
 {
   "source": "foresignal.com",
-  "pulled_at": "2026-02-02T19:40:40+08:00",
+  "pulled_at": "2026-02-02T19:45:37+08:00",
   "signals": [
     {
       "pair": "AUD/USD",
@@ -88,16 +88,16 @@
     },
     {
       "pair": "USD/CAD",
-      "status": "Buy",
+      "status": "Filled",
       "from_ts": 1770017640,
       "till_ts": 1770032040,
       "sell_at": "",
-      "buy_at": "1.3651",
-      "bought_at": "",
-      "sold_at": "",
-      "take_profit_at": "1.3676",
-      "stop_loss_at": "1.3620",
-      "pips": null,
+      "buy_at": "",
+      "bought_at": "1.3651",
+      "sold_at": "1.3633",
+      "take_profit_at": "",
+      "stop_loss_at": "",
+      "pips": -18,
       "key": "USD/CAD|1770017640|1770032040"
     },
     {
