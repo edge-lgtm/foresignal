@@ -421,18 +421,17 @@ def index_by_key(items: list[dict]) -> dict[str, dict]:
     return {it["key"]: it for it in items if "key" in it}
 
 
-def build_change_report(prev: list[dict] | None, cur: list[Signal]) -> tuple[bool, str]:
+def build_change_report(prev: list[dict] | None, cur: list[Signal]) -> tuple[bool, str, bool]:
     """
     Returns:
-      (changed?, telegram_html_text)
+      (changed?, telegram_html_text, removed_only?)
     """
     pulled_at = datetime.now(TZ).strftime("%Y-%m-%d %H:%M")
 
     cur_list = [s.to_dict() for s in cur]
     if prev is None:
-        # first run => treat as change and send snapshot
         text = build_full_snapshot(cur, pulled_at, prefix="🆕 First snapshot")
-        return True, text
+        return True, text, False
 
     prev_map = index_by_key(prev)
     cur_map = index_by_key(cur_list)
@@ -440,14 +439,17 @@ def build_change_report(prev: list[dict] | None, cur: list[Signal]) -> tuple[boo
     changed_pairs_blocks: list[str] = []
     expired_blocks: list[str] = []
 
-    # Detect expired: previous existed and till passed, and it still exists now with same key OR disappeared
     now_ts = now_unix()
+
+    removed_count = 0
+    new_count = 0
+    changed_count = 0
 
     # 1) Changes + New
     for k, new in cur_map.items():
         old = prev_map.get(k)
         if old is None:
-            # new signal
+            new_count += 1
             changed_pairs_blocks.append(format_new_signal(new))
             continue
 
@@ -457,33 +459,30 @@ def build_change_report(prev: list[dict] | None, cur: list[Signal]) -> tuple[boo
                 diffs.append((f, old.get(f), new.get(f)))
 
         if diffs:
+            changed_count += 1
             changed_pairs_blocks.append(format_changed_signal(new, diffs))
 
-    # 2) Removed (could be expired or just no longer shown)
+    # 2) Removed
     for k, old in prev_map.items():
         if k not in cur_map:
-            # If it had till_ts and it's in the past -> expired alert
             till_ts = old.get("till_ts")
             if isinstance(till_ts, int) and till_ts <= now_ts:
                 expired_blocks.append(format_expired(old))
             else:
-                # removed but not yet till -> treat as change
+                removed_count += 1
                 changed_pairs_blocks.append(format_removed(old))
 
-    # 3) Also mark signals as expired if they still exist but till passed and not already Filled/Cancelled
+    # 3) Expired (still exists but past till)
     for k, new in cur_map.items():
         till_ts = new.get("till_ts")
         status = (new.get("status") or "").lower()
         if isinstance(till_ts, int) and till_ts <= now_ts:
-            # signal is beyond till time
             if status not in ("filled", "cancelled"):
                 expired_blocks.append(format_expired(new))
 
-    # If nothing changed and no expired -> no send
     if not changed_pairs_blocks and not expired_blocks:
-        return False, ""
+        return False, "", False
 
-    # Win rate
     overall_wr, _ = compute_win_rate()
 
     header = [
@@ -504,9 +503,10 @@ def build_change_report(prev: list[dict] | None, cur: list[Signal]) -> tuple[boo
         blocks.extend(expired_blocks)
         blocks.append("")
 
-    # Keep message within Telegram limit by trimming if needed
     msg = "\n".join(blocks).strip()
-    return True, msg
+
+    removed_only = (removed_count > 0) and (new_count == 0) and (changed_count == 0) and (len(expired_blocks) == 0)
+    return True, msg, removed_only
 
 
 def format_field_name(f: str) -> str:
@@ -670,7 +670,7 @@ def main() -> None:
 
     prev = load_previous()
 
-    changed, report = build_change_report(prev, signals)
+    changed, report, removed_only = build_change_report(prev, signals)
     if not changed:
         print("No change detected — Telegram not sent.")
         return
@@ -693,11 +693,16 @@ def main() -> None:
         encoding="utf-8",
     )
 
-    # Send Telegram (only because change/expired happened)
-    send_telegram_html(report)
+    # Send Telegram unless it's ONLY "Removed from page"
+    if not removed_only:
+        send_telegram_html(report)
+        print("Telegram sent.")
+    else:
+        print("Only 'Removed from page' detected — Telegram NOT sent.")
+    
+    # Always post to Blogger (your requirement only mentioned Telegram)
     subject = f"Foresignal Update - {datetime.now(TZ).strftime('%Y-%m-%d %H:%M')} (UTC+8)"
     post_to_blogger(subject=subject, html_body=report)
-    print("Telegram sent.")
     print(report)
 
 
