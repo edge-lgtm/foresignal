@@ -23,7 +23,30 @@ LAST_STATE_FILE = DATA_DIR / "latest_signals.json"          # last snapshot (for
 TRADES_LOG_FILE = DATA_DIR / "trades_history.jsonl"         # append-only trade outcomes
 
 # Foresignal obfuscation map (from site JS)
-MAP = "670429+-. 5,813"
+MAP: str = ""
+MAP_BASE: int = 68  # default fallback
+F_MAP_RE = re.compile(
+    r"""function\s+f\s*\(\s*s\s*\)\s*\{.*?w\(\s*'([^']+)'\.charAt\(\s*s\.charCodeAt\(\s*i\s*\)\s*-\s*(\d+)\s*-\s*i\s*\)\s*\)\s*\).*?\}""",
+    re.DOTALL
+)
+
+def init_decoder_from_html(html: str) -> None:
+    """
+    Pulls the live obfuscation MAP and base from the site JS:
+      w('<MAP>'.charAt(s.charCodeAt(i)-<BASE>-i))
+    """
+    global MAP, MAP_BASE
+
+    m = F_MAP_RE.search(html)
+    if not m:
+        # Fallback: keep previous values; decoding may still work via plaintext tail "1.1861"
+        print("⚠️ Could not extract decoder MAP/BASE from HTML. Using fallback.")
+        if not MAP:
+            MAP = " 7032,-5.4981+6"  # last known example fallback
+        return
+
+    MAP = m.group(1)
+    MAP_BASE = int(m.group(2))
 NUM_RE = re.compile(r"[-+]?\d+(?:\.\d+)?")
 F_ENC_RE = re.compile(r"f\(\s*'([^']+)'\s*\)")
 HHMM_RE = re.compile(r"hhmm\((\d+)\)")  # unix seconds inside hhmm(....)
@@ -109,7 +132,7 @@ def fetch_html(url: str) -> str:
 def decode_f(encoded: str) -> str:
     out = []
     for i, ch in enumerate(encoded):
-        idx = ord(ch) - 65 - i
+        idx = ord(ch) - MAP_BASE - i
         if 0 <= idx < len(MAP):
             out.append(MAP[idx])
     return "".join(out).strip()
@@ -638,6 +661,7 @@ def send_telegram_html(text: str) -> None:
 # ---------------- MAIN ----------------
 def main() -> None:
     html = fetch_html(URL)
+    init_decoder_from_html(html)
     signals = parse_signals(html)
 
     # log outcomes (for win-rate)
