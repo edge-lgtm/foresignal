@@ -1,6 +1,6 @@
 {
   "source": "foresignal.com",
-  "pulled_at": "2026-02-03T00:20:38+08:00",
+  "pulled_at": "2026-02-03T00:30:42+08:00",
   "signals": [
     {
       "pair": "AUD/USD",
@@ -88,7 +88,7 @@
     },
     {
       "pair": "USD/CAD",
-      "status": "Buy",
+      "status": "Cancelled",
       "from_ts": 1770035340,
       "till_ts": 1770049740,
       "sell_at": "",
