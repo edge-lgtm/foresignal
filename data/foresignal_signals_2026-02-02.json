@@ -1,6 +1,6 @@
 {
   "source": "foresignal.com",
-  "pulled_at": "2026-02-02T10:05:39+08:00",
+  "pulled_at": "2026-02-02T10:10:41+08:00",
   "signals": [
     {
       "pair": "AUD/USD",
@@ -116,17 +116,17 @@
     },
     {
       "pair": "USD/JPY",
-      "status": "Filled",
-      "from_ts": 1769788200,
-      "till_ts": 1769802600,
+      "status": "",
+      "from_ts": null,
+      "till_ts": null,
       "sell_at": "",
       "buy_at": "",
-      "bought_at": "58,-",
-      "sold_at": "58,51",
+      "bought_at": "",
+      "sold_at": "",
       "take_profit_at": "",
       "stop_loss_at": "",
-      "pips": 3,
-      "key": "USD/JPY|1769788200|1769802600"
+      "pips": null,
+      "key": "USD/JPY|0|0"
     }
   ]
 }
