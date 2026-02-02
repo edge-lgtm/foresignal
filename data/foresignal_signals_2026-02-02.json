@@ -1,6 +1,6 @@
 {
   "source": "foresignal.com",
-  "pulled_at": "2026-02-02T13:23:55+08:00",
+  "pulled_at": "2026-02-02T14:00:44+08:00",
   "signals": [
     {
       "pair": "AUD/USD",
@@ -60,16 +60,16 @@
     },
     {
       "pair": "GBP/USD",
-      "status": "Sell",
+      "status": "Filled",
       "from_ts": 1770001860,
       "till_ts": 1770023460,
-      "sell_at": "1.3691",
+      "sell_at": "",
       "buy_at": "",
-      "bought_at": "",
-      "sold_at": "",
-      "take_profit_at": "1.3669",
-      "stop_loss_at": "1.3718",
-      "pips": null,
+      "bought_at": "1.3664",
+      "sold_at": "1.3691",
+      "take_profit_at": "",
+      "stop_loss_at": "",
+      "pips": 27,
       "key": "GBP/USD|1770001860|1770023460"
     },
     {
