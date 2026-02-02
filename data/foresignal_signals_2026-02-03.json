@@ -1,6 +1,6 @@
 {
   "source": "foresignal.com",
-  "pulled_at": "2026-02-03T00:10:42+08:00",
+  "pulled_at": "2026-02-03T00:15:39+08:00",
   "signals": [
     {
       "pair": "AUD/USD",
@@ -46,17 +46,17 @@
     },
     {
       "pair": "GBP/CHF",
-      "status": "",
-      "from_ts": null,
-      "till_ts": null,
+      "status": "Buy",
+      "from_ts": 1770047760,
+      "till_ts": 1770062160,
       "sell_at": "",
-      "buy_at": "",
+      "buy_at": "1.0637",
       "bought_at": "",
       "sold_at": "",
-      "take_profit_at": "",
-      "stop_loss_at": "",
+      "take_profit_at": "1.0672",
+      "stop_loss_at": "1.0594",
       "pips": null,
-      "key": "GBP/CHF|0|0"
+      "key": "GBP/CHF|1770047760|1770062160"
     },
     {
       "pair": "GBP/USD",
