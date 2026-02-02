@@ -1,6 +1,6 @@
 {
   "source": "foresignal.com",
-  "pulled_at": "2026-02-02T09:35:38+08:00",
+  "pulled_at": "2026-02-02T09:40:39+08:00",
   "signals": [
     {
       "pair": "AUD/USD",
@@ -9,11 +9,11 @@
       "till_ts": 1769786880,
       "sell_at": "",
       "buy_at": "",
-      "bought_at": "0.7002",
-      "sold_at": "0.7019",
+      "bought_at": "9,299-",
+      "sold_at": "9,291",
       "take_profit_at": "",
       "stop_loss_at": "",
-      "pips": 17,
+      "pips": 2,
       "key": "AUD/USD|1769772480|1769786880"
     },
     {
@@ -23,11 +23,11 @@
       "till_ts": 1769785980,
       "sell_at": "",
       "buy_at": "",
-      "bought_at": "183.73",
-      "sold_at": "184.05",
+      "bought_at": "3+,2+",
+      "sold_at": "38,95",
       "take_profit_at": "",
       "stop_loss_at": "",
-      "pips": 32,
+      "pips": null,
       "key": "EUR/JPY|1769771580|1769785980"
     },
     {
@@ -51,11 +51,11 @@
       "till_ts": 1769795220,
       "sell_at": "",
       "buy_at": "",
-      "bought_at": "1.0558",
-      "sold_at": "1.0581",
+      "bought_at": ",9553",
+      "sold_at": ",953",
       "take_profit_at": "",
       "stop_loss_at": "",
-      "pips": 23,
+      "pips": null,
       "key": "GBP/CHF|1769780820|1769795220"
     },
     {
@@ -65,11 +65,11 @@
       "till_ts": 1769787840,
       "sell_at": "",
       "buy_at": "",
-      "bought_at": "1.3763",
-      "sold_at": "1.3744",
+      "bought_at": ",+2+",
+      "sold_at": ",+288",
       "take_profit_at": "",
       "stop_loss_at": "",
-      "pips": -19,
+      "pips": 1,
       "key": "GBP/USD|1769773440|1769787840"
     },
     {
@@ -79,11 +79,11 @@
       "till_ts": 1770007500,
       "sell_at": "",
       "buy_at": "",
-      "bought_at": "0.6015",
-      "sold_at": "0.6034",
+      "bought_at": "9,95",
+      "sold_at": "9,9+8",
       "take_profit_at": "",
       "stop_loss_at": "",
-      "pips": 19,
+      "pips": 1,
       "key": "NZD/USD|1769993100|1770007500"
     },
     {
@@ -93,11 +93,11 @@
       "till_ts": 1769784840,
       "sell_at": "",
       "buy_at": "",
-      "bought_at": "1.3506",
-      "sold_at": "1.3545",
+      "bought_at": ",+59",
+      "sold_at": ",+585",
       "take_profit_at": "",
       "stop_loss_at": "",
-      "pips": 39,
+      "pips": 1,
       "key": "USD/CAD|1769770440|1769784840"
     },
     {
@@ -106,11 +106,11 @@
       "from_ts": 1769994420,
       "till_ts": 1770008820,
       "sell_at": "",
-      "buy_at": "0.7727",
+      "buy_at": "9,22-2",
       "bought_at": "",
       "sold_at": "",
-      "take_profit_at": "0.7742",
-      "stop_loss_at": "0.7708",
+      "take_profit_at": "9,228-",
+      "stop_loss_at": "9,2293",
       "pips": null,
       "key": "USD/CHF|1769994420|1770008820"
     },
@@ -121,11 +121,11 @@
       "till_ts": 1769802600,
       "sell_at": "",
       "buy_at": "",
-      "bought_at": "154.21",
-      "sold_at": "154.59",
+      "bought_at": "58,-",
+      "sold_at": "58,51",
       "take_profit_at": "",
       "stop_loss_at": "",
-      "pips": 38,
+      "pips": 3,
       "key": "USD/JPY|1769788200|1769802600"
     }
   ]
