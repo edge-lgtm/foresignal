@@ -134,7 +134,7 @@ headers = {
     "Content-Type": "application/json; charset=UTF-8",
     "Accept": "application/json; charset=UTF-8",
     "X-IG-API-KEY": IG_API_KEY,
-    "Version": "2"
+    "Version": "3"
 }
 PAIR_TO_EPIC = {
     "EUR/USD": "CS.D.EURUSD.MINI.IP",
@@ -161,7 +161,25 @@ def ig_login() -> dict:
     payload = {"identifier": username, "password": password}
 
     r = requests.post(url, headers=headers, json=payload, timeout=30)
-    print(r)
+    print("=== IG LOGIN RESPONSE ===")
+    print("URL:", r.url)
+    print("Status code:", r.status_code)
+    print("Reason:", r.reason)
+    
+    print("\n--- HEADERS ---")
+    for k, v in r.headers.items():
+        print(f"{k}: {v}")
+    
+    print("\n--- BODY (raw text) ---")
+    print(r.text)
+    
+    print("\n--- BODY (json parsed, if possible) ---")
+    try:
+        print(json.dumps(r.json(), indent=2))
+    except Exception as e:
+        print("Not JSON:", e)
+    
+    print("=== END RESPONSE ===")
     if not r.ok:
         raise RuntimeError(f"IG login failed {r.status_code}: {r.text}")
 
