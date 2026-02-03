@@ -29,6 +29,160 @@ F_MAP_RE = re.compile(
     r"""function\s+f\s*\(\s*s\s*\)\s*\{.*?w\(\s*'([^']+)'\.charAt\(\s*s\.charCodeAt\(\s*i\s*\)\s*-\s*(\d+)\s*-\s*i\s*\)\s*\)\s*\).*?\}""",
     re.DOTALL
 )
+
+def post_to_blogger(subject: str, html_body: str) -> bool:
+    to_addr = os.getenv("BLOGGER_POST_EMAIL")
+    smtp_host = os.getenv("SMTP_HOST", "smtp.gmail.com")
+    smtp_port = int(os.getenv("SMTP_PORT", "587"))
+    smtp_user = os.getenv("SMTP_USER")
+    smtp_pass = os.getenv("SMTP_PASS")
+
+    if not to_addr or not smtp_user or not smtp_pass:
+        print("Blogger SMTP not configured.")
+        return False
+
+    try:
+        msg = EmailMessage()
+        msg["From"] = smtp_user
+        msg["To"] = to_addr
+        msg["Subject"] = subject
+        msg.set_content("This post requires an HTML-capable email client.")
+        msg.add_alternative(html_body, subtype="html")
+
+        with smtplib.SMTP(smtp_host, smtp_port, timeout=30) as s:
+            s.ehlo()
+            s.starttls()
+            s.login(smtp_user, smtp_pass)
+            s.send_message(msg)
+
+        return True
+    except Exception as e:
+        print(f"Blogger post failed: {e}")
+        return False
+
+def send_telegram_html(text: str) -> bool:
+    token = os.getenv("TELEGRAM_BOT_TOKEN")
+    chat_id = os.getenv("TELEGRAM_CHAT_ID")
+    if not token or not chat_id:
+        print("Telegram not configured.")
+        return False
+
+    chunks = []
+    while len(text) > 3900:
+        cut = text.rfind("\n\n", 0, 3900)
+        if cut == -1:
+            cut = 3900
+        chunks.append(text[:cut].strip())
+        text = text[cut:].strip()
+    if text:
+        chunks.append(text)
+
+    url = f"https://api.telegram.org/bot{token}/sendMessage"
+    try:
+        for chunk in chunks:
+            r = requests.post(
+                url,
+                json={
+                    "chat_id": chat_id,
+                    "text": chunk,
+                    "parse_mode": "HTML",
+                    "disable_web_page_preview": True,
+                },
+                timeout=30,
+            )
+            r.raise_for_status()
+        return True
+    except Exception as e:
+        print(f"Telegram send failed: {e}")
+        return False
+
+
+ORDERED_FILE = DATA_DIR / "ordered_keys.json"
+
+def load_ordered_keys() -> set[str]:
+    if not ORDERED_FILE.exists():
+        return set()
+    try:
+        obj = json.loads(ORDERED_FILE.read_text(encoding="utf-8"))
+        if isinstance(obj, list):
+            return set(str(x) for x in obj)
+    except Exception:
+        pass
+    return set()
+
+def save_ordered_keys(keys: set[str]) -> None:
+    ORDERED_FILE.write_text(json.dumps(sorted(keys), indent=2), encoding="utf-8")
+
+IG_BASE = "https://demo-api.ig.com/gateway/deal"
+IG_HEADERS_BASE = {
+    "Content-Type": "application/json",
+    "Accept": "application/json; charset=UTF-8",
+    "Version": "2",
+}
+
+PAIR_TO_EPIC = {
+    "EUR/USD": "CS.D.EURUSD.MINI.IP",
+    "GBP/USD": "CS.D.GBPUSD.MINI.IP",
+    "USD/JPY": "CS.D.USDJPY.MINI.IP",
+    # add more
+}
+
+def ig_login() -> dict:
+    api_key = os.getenv("IG_API_KEY")
+    username = os.getenv("IG_USERNAME")
+    password = os.getenv("IG_PASSWORD")
+
+    if not api_key or not username or not password:
+        raise RuntimeError("Missing IG_API_KEY / IG_USERNAME / IG_PASSWORD")
+
+    r = requests.post(
+        f"{IG_BASE}/session",
+        headers={**IG_HEADERS_BASE, "X-IG-API-KEY": api_key},
+        json={"identifier": username, "password": password},
+        timeout=20,
+    )
+    r.raise_for_status()
+
+    return {
+        "X-IG-API-KEY": api_key,
+        "CST": r.headers.get("CST"),
+        "X-SECURITY-TOKEN": r.headers.get("X-SECURITY-TOKEN"),
+    }
+
+def ig_place_limit(
+    auth: dict,
+    *,
+    epic: str,
+    direction: str,
+    entry: float,
+    tp: float,
+    sl: float,
+    size: float = 0.5,
+) -> dict:
+    headers = {
+        **IG_HEADERS_BASE,
+        "X-IG-API-KEY": auth["X-IG-API-KEY"],
+        "CST": auth["CST"],
+        "X-SECURITY-TOKEN": auth["X-SECURITY-TOKEN"],
+    }
+
+    payload = {
+        "epic": epic,
+        "direction": direction,          # "BUY" or "SELL"
+        "orderType": "LIMIT",
+        "size": size,
+        "level": entry,                  # entry price
+        "limitLevel": tp,                # take profit
+        "stopLevel": sl,                 # stop loss
+        "timeInForce": "GOOD_TILL_CANCELLED",
+        "forceOpen": True,
+        "guaranteedStop": False,
+        "currencyCode": "USD",
+    }
+
+    r = requests.post(f"{IG_BASE}/positions/otc", headers=headers, json=payload, timeout=20)
+    r.raise_for_status()
+    return r.json()
 def is_open_and_unfilled(signal: Signal, now_ts: int) -> bool:
     if not signal.from_ts or not signal.till_ts:
         return False
@@ -697,58 +851,79 @@ def main() -> None:
     init_decoder_from_html(html)
     signals = parse_signals(html)
 
-    # log outcomes (for win-rate)
-    for s in signals:
-        append_trade_outcome(s)
-
     prev = load_previous()
+    new_open = get_new_open_signals(prev, signals)
 
-    new_open_signals = get_new_open_signals(prev, signals)
+    # Always save snapshot state at end (so "new" becomes "known" next run)
+    # But we only order if send actually happened.
+    ordered_keys = load_ordered_keys()
 
-    if new_open_signals:
+    if new_open:
         pulled_at = datetime.now(TZ).strftime("%Y-%m-%d %H:%M")
         report = build_full_snapshot(
-            new_open_signals,
+            new_open,
             pulled_at,
             prefix="🆕 New OPEN Signals (Unfilled)"
         )
-        send_telegram_html(report)
-        print("Telegram sent for NEW OPEN signals.")
-    else:
-        print("No new open signals.")
-    if not changed:
-        print("No change detected — Telegram not sent.")
-        return
 
-    # Save current snapshot
+        # 1) send notifications
+        sent_tg = send_telegram_html(report)
+        subject = f"Foresignal NEW OPEN - {pulled_at} (UTC+8)"
+        sent_blog = post_to_blogger(subject=subject, html_body=report)
+
+        # 2) if send triggered → place IG orders
+        if sent_tg or sent_blog:
+            ig_auth = ig_login()
+
+            for s in new_open:
+                k = s.key()
+                if k in ordered_keys:
+                    continue
+
+                epic = PAIR_TO_EPIC.get(s.pair)
+                if not epic:
+                    print(f"⚠️ No IG EPIC mapping for {s.pair}; skipping.")
+                    continue
+
+                # Decide direction + entry from your fields
+                if s.buy_at:
+                    direction = "BUY"
+                    entry = float(s.buy_at)
+                elif s.sell_at:
+                    direction = "SELL"
+                    entry = float(s.sell_at)
+                else:
+                    print(f"⚠️ No entry price for {s.pair}; skipping.")
+                    continue
+
+                if not s.take_profit_at or not s.stop_loss_at:
+                    print(f"⚠️ Missing TP/SL for {s.pair}; skipping.")
+                    continue
+
+                tp = float(s.take_profit_at)
+                sl = float(s.stop_loss_at)
+
+                resp = ig_place_limit(
+                    ig_auth,
+                    epic=epic,
+                    direction=direction,
+                    entry=entry,
+                    tp=tp,
+                    sl=sl,
+                    size=float(os.getenv("IG_SIZE", "0.5")),
+                )
+
+                print(f"✅ IG order placed for {s.pair}: {resp}")
+                ordered_keys.add(k)
+
+            save_ordered_keys(ordered_keys)
+        else:
+            print("No notification sent; IG order NOT placed.")
+    else:
+        print("No new open/unfilled signals.")
+
+    # Save current snapshot so "new" logic is correct next run
     save_current(signals)
-
-    # Also save daily json snapshot (optional)
-    now = datetime.now(TZ)
-    daily_json = DATA_DIR / f"foresignal_signals_{now.strftime('%Y-%m-%d')}.json"
-    daily_json.write_text(
-        json.dumps(
-            {
-                "source": "foresignal.com",
-                "pulled_at": now.isoformat(timespec="seconds"),
-                "signals": [s.to_dict() for s in signals],
-            },
-            indent=2,
-        ),
-        encoding="utf-8",
-    )
-
-    # Send Telegram unless it's ONLY "Removed from page"
-    if not removed_only:
-        send_telegram_html(report)
-        print("Telegram sent.")
-    else:
-        print("Only 'Removed from page' detected — Telegram NOT sent.")
-    
-    # Always post to Blogger (your requirement only mentioned Telegram)
-    subject = f"Foresignal Update - {datetime.now(TZ).strftime('%Y-%m-%d %H:%M')} (UTC+8)"
-    post_to_blogger(subject=subject, html_body=report)
-    print(report)
 
 
 if __name__ == "__main__":
