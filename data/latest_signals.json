@@ -29,17 +29,17 @@
   },
   {
     "pair": "EUR/USD",
-    "status": "",
-    "from_ts": null,
-    "till_ts": null,
+    "status": "Buy",
+    "from_ts": 1770144120,
+    "till_ts": 1770172920,
     "sell_at": "",
-    "buy_at": "",
+    "buy_at": "1.1810",
     "bought_at": "",
     "sold_at": "",
-    "take_profit_at": "",
-    "stop_loss_at": "",
+    "take_profit_at": "1.1826",
+    "stop_loss_at": "1.1790",
     "pips": null,
-    "key": "EUR/USD|0|0"
+    "key": "EUR/USD|1770144120|1770172920"
   },
   {
     "pair": "GBP/CHF",
