@@ -1048,12 +1048,13 @@ def ig_close_position(auth: dict, *, deal_id: str, epic: str, direction: str, si
 
     payload = {
         "dealId": deal_id,
-        "epic": epic,                 # ✅ REQUIRED
+        "epic": epic,
         "direction": close_direction,
-        "orderType": "MARKET",        # ✅ REQUIRED
+        "orderType": "MARKET",
         "size": float(size),
-        "expiry": "-",                # FX OTC
+        "expiry": "-",
         "forceOpen": False,
+        "guaranteedStop": False,   # ✅ REQUIRED
     }
 
     headers = {
