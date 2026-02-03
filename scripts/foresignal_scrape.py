@@ -244,6 +244,8 @@ IG_HEADERS_BASE = {
     "X-IG-API-KEY": IG_API_KEY,
     "clientPlatform": "WEB",
 }
+def calc_distance(entry_price: float, target_price: float) -> float:
+    return round(abs(target_price - entry_price), 5)
 def ig_place_limit(
     auth: dict,
     *,
@@ -264,22 +266,19 @@ def ig_place_limit(
         "CST": auth["cst"],
         "X-SECURITY-TOKEN": auth["xst"],
     }
-    print(2)
+    tp_distance = round(abs(tp - entry), 5)
+    sl_distance = round(abs(sl - entry), 5)
     
     payload = {
         "epic": epic,
-        "expiry": "-",
-        "direction": direction,        # BUY / SELL
+        "direction": direction,
         "orderType": "MARKET",
         "size": size,
-        "level": entry,
-        "limitLevel": tp,
-        "stopLevel": sl,
+        "limitDistance": tp_distance,
+        "stopDistance": sl_distance,
         "forceOpen": True,
-        "guaranteedStop": False,
-        "currencyCode": "USD",         # ✅ REQUIRED
+        "currencyCode": "USD",
     }
-    print(3)
     url = f"{auth['base']}/positions/otc"
     print("IG ORDER URL:", url)
     print("IG ORDER HEADERS:", headers)
