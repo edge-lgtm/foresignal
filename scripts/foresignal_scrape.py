@@ -250,6 +250,7 @@ def ig_place_limit(
     sl: float,
     size: float = 0.5,
 ) -> dict:
+    print(auth)
     headers = IG_HEADERS_BASE.copy()
     headers.update({
         "X-IG-API-KEY": auth["X-IG-API-KEY"],
