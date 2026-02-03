@@ -12,6 +12,11 @@ jobs:
   scrape:
     runs-on: ubuntu-latest
     env:
+      IG_API_KEY: ${{ secrets.IG_API_KEY }}
+      IG_USERNAME: ${{ secrets.IG_USERNAME }}
+      IG_PASSWORD: ${{ secrets.IG_PASSWORD }}
+      IG_ACCOUNT_ID: ${{ secrets.IG_ACCOUNT_ID }}
+      IG_DEMO: ${{ secrets.IG_DEMO }}
       BLOGGER_POST_EMAIL: ${{ secrets.BLOGGER_POST_EMAIL }}
       SMTP_USER: ${{ secrets.SMTP_USER }}
       SMTP_PASS: ${{ secrets.SMTP_PASS }}
