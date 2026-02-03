@@ -170,7 +170,7 @@ def ig_login() -> dict:
         "Content-Type": "application/json; charset=UTF-8",
         "Accept": "application/json; charset=UTF-8",
         "X-IG-API-KEY": api_key,
-        "Version": "3",
+        "Version": "2",
     }
     payload = {
         "identifier": "edwardlancelorilla",
