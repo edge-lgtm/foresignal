@@ -998,6 +998,7 @@ def main() -> None:
             print(f"IG login failed: {e}")
             ig_auth = None
         print(ig_auth)
+        print(new_open_signals)
         if ig_auth:
             for s in new_open_signals:
                 k = s.key()
