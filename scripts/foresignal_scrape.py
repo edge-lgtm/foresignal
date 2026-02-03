@@ -270,8 +270,7 @@ def ig_place_limit(
         "guaranteedStop": False,
         "currencyCode": "USD",
     }
-    url = f"{auth['base']}/positions/otc"
-    r = requests.post(url, headers=headers, json=payload, timeout=20)
+    r = requests.post("https://demo-api.ig.com/gateway/deal/positions/otc"", headers=headers, json=payload, timeout=20)
     r.raise_for_status()
     return r.json()
 
