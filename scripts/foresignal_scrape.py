@@ -270,8 +270,8 @@ def ig_place_limit(
         "guaranteedStop": False,
         "currencyCode": "USD",
     }
-
-    r = requests.post(f"{IG_BASE}/positions/otc", headers=headers, json=payload, timeout=20)
+    url = f"{auth['base']}/positions/otc"
+    r = requests.post(url, headers=headers, json=payload, timeout=20)
     r.raise_for_status()
     return r.json()
 
