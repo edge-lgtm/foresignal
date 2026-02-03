@@ -149,6 +149,8 @@ def ig_login() -> dict:
 
     base = "https://demo-api.ig.com" if IG_DEMO else "https://api.ig.com"
     url = f"{base}/gateway/deal/session"
+    print(url)
+    
 
     headers = {
         "Content-Type": "application/json; charset=UTF-8",
@@ -159,6 +161,7 @@ def ig_login() -> dict:
     payload = {"identifier": username, "password": password}
 
     r = requests.post(url, headers=headers, json=payload, timeout=30)
+    print(r)
     if not r.ok:
         raise RuntimeError(f"IG login failed {r.status_code}: {r.text}")
 
