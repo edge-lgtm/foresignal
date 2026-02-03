@@ -12,6 +12,19 @@ import requests
 from bs4 import BeautifulSoup
 from email.message import EmailMessage
 import smtplib
+
+
+IG_API_KEY = os.getenv("IG_API_KEY")
+IG_USERNAME = os.getenv("IG_USERNAME")
+IG_PASSWORD = os.getenv("IG_PASSWORD")
+IG_ACCOUNT_ID = os.getenv("IG_ACCOUNT_ID")
+IG_DEMO = (os.getenv("IG_DEMO", "true").lower() in ("1", "true", "yes", "y"))
+def require_env(name: str) -> str:
+    v = os.getenv(name)
+    if not v:
+        raise RuntimeError(f"Missing env var: {name}")
+    return v
+
 # ---------------- CONFIG ----------------
 URL = "https://foresignal.com/en/"
 TZ = ZoneInfo("Asia/Manila")
@@ -129,7 +142,32 @@ PAIR_TO_EPIC = {
     "USD/JPY": "CS.D.USDJPY.MINI.IP",
     # add more
 }
+def ig_login() -> dict:
+    api_key = require_env("IG_API_KEY")
+    username = require_env("IG_USERNAME")
+    password = require_env("IG_PASSWORD")
 
+    base = "https://demo-api.ig.com" if IG_DEMO else "https://api.ig.com"
+    url = f"{base}/gateway/deal/session"
+
+    headers = {
+        "Content-Type": "application/json; charset=UTF-8",
+        "Accept": "application/json; charset=UTF-8",
+        "X-IG-API-KEY": api_key,
+        "Version": "2",
+    }
+    payload = {"identifier": username, "password": password}
+
+    r = requests.post(url, headers=headers, json=payload, timeout=30)
+    if not r.ok:
+        raise RuntimeError(f"IG login failed {r.status_code}: {r.text}")
+
+    return {
+        "cst": r.headers.get("CST"),
+        "xst": r.headers.get("X-SECURITY-TOKEN"),
+        "account_id": r.json().get("currentAccountId"),
+        "base": base
+    }
 def ig_login_demo() -> dict:
     url = "https://demo-api.ig.com/gateway/deal/session"
 
