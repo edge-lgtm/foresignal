@@ -29,7 +29,40 @@ F_MAP_RE = re.compile(
     r"""function\s+f\s*\(\s*s\s*\)\s*\{.*?w\(\s*'([^']+)'\.charAt\(\s*s\.charCodeAt\(\s*i\s*\)\s*-\s*(\d+)\s*-\s*i\s*\)\s*\)\s*\).*?\}""",
     re.DOTALL
 )
+def is_open_and_unfilled(signal: Signal, now_ts: int) -> bool:
+    if not signal.from_ts or not signal.till_ts:
+        return False
 
+    if not (signal.from_ts <= now_ts <= signal.till_ts):
+        return False
+
+    status = (signal.status or "").lower()
+    if status in ("filled", "cancelled", "expired"):
+        return False
+
+    if signal.bought_at or signal.sold_at:
+        return False
+
+    return True
+def get_new_open_signals(
+    prev: list[dict] | None,
+    cur: list[Signal]
+) -> list[Signal]:
+    now_ts = now_unix()
+
+    prev_keys = set()
+    if prev:
+        prev_keys = {p["key"] for p in prev if "key" in p}
+
+    new_open = []
+    for s in cur:
+        if s.key() in prev_keys:
+            continue
+
+        if is_open_and_unfilled(s, now_ts):
+            new_open.append(s)
+
+    return new_open
 def init_decoder_from_html(html: str) -> None:
     """
     Pulls the live obfuscation MAP and base from the site JS:
@@ -670,7 +703,19 @@ def main() -> None:
 
     prev = load_previous()
 
-    changed, report, removed_only = build_change_report(prev, signals)
+    new_open_signals = get_new_open_signals(prev, signals)
+
+    if new_open_signals:
+        pulled_at = datetime.now(TZ).strftime("%Y-%m-%d %H:%M")
+        report = build_full_snapshot(
+            new_open_signals,
+            pulled_at,
+            prefix="🆕 New OPEN Signals (Unfilled)"
+        )
+        send_telegram_html(report)
+        print("Telegram sent for NEW OPEN signals.")
+    else:
+        print("No new open signals.")
     if not changed:
         print("No change detected — Telegram not sent.")
         return
