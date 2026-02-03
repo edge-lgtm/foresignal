@@ -1043,7 +1043,14 @@ def ig_get_positions(auth: dict) -> list[dict]:
     r.raise_for_status()
     return r.json().get("positions", [])
 
-def ig_close_position(auth: dict, *, deal_id: str, epic: str, direction: str, size: float):
+def ig_close_position(
+    auth: dict,
+    *,
+    deal_id: str,
+    epic: str,
+    direction: str,
+    size: float,
+):
     close_direction = "SELL" if direction == "BUY" else "BUY"
 
     payload = {
@@ -1054,7 +1061,8 @@ def ig_close_position(auth: dict, *, deal_id: str, epic: str, direction: str, si
         "size": float(size),
         "expiry": "-",
         "forceOpen": False,
-        "guaranteedStop": False,   # ✅ REQUIRED
+        "guaranteedStop": False,   # REQUIRED
+        "currencyCode": "USD",     # REQUIRED
     }
 
     headers = {
