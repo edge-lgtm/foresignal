@@ -134,9 +134,10 @@ headers = {
     "Content-Type": "application/json; charset=UTF-8",
     "Accept": "application/json; charset=UTF-8",
     "X-IG-API-KEY": IG_API_KEY,
-    "Version": "3"
+    "Version": "2"
 }
 PAIR_TO_EPIC = {
+    "NZD/USD": "CS.D.NZDUSD.MINI.IP",
     "EUR/USD": "CS.D.EURUSD.MINI.IP",
     "GBP/USD": "CS.D.GBPUSD.MINI.IP",
     "USD/JPY": "CS.D.USDJPY.MINI.IP",
@@ -147,6 +148,7 @@ PAIR_TO_EPIC = {
     "GBP/CHF": "CS.D.GBPCHF.MINI.IP",
 }
 IG_EPIC_MAP = {
+    "NZD/USD": "CS.D.NZDUSD.MINI.IP",
     "EUR/USD": "CS.D.EURUSD.MINI.IP",
     "GBP/USD": "CS.D.GBPUSD.MINI.IP",
     "USD/JPY": "CS.D.USDJPY.MINI.IP",
