@@ -289,16 +289,11 @@ def ig_place_limit(
     print(4)
     return r.json()
 
-def ig_open_market(auth: dict, *, epic: str, direction: str, size: float) -> str:
-    """
-    Opens a MARKET trade.
-    Returns dealReference.
-    """
+def ig_open_market(auth: dict, epic: str, direction: str, size: float) -> str:
     url = f"{auth['base']}/positions/otc"
-
     headers = {
-        "Content-Type": "application/json",
         "Accept": "application/json",
+        "Content-Type": "application/json",
         "Version": "2",
         "X-IG-API-KEY": auth["api_key"],
         "CST": auth["cst"],
@@ -308,68 +303,50 @@ def ig_open_market(auth: dict, *, epic: str, direction: str, size: float) -> str
     payload = {
         "epic": epic,
         "expiry": "-",
-        "direction": direction,    # BUY or SELL
+        "direction": direction,     # BUY/SELL
         "orderType": "MARKET",
         "size": size,
         "forceOpen": True,
-        "guaranteedStop": False,
         "currencyCode": "USD",
+        "guaranteedStop": False,
     }
 
     r = requests.post(url, headers=headers, json=payload, timeout=20)
     r.raise_for_status()
+    return r.json()["dealReference"]
 
-    data = r.json()
-    return data["dealReference"]
-
-def ig_confirm_deal(auth: dict, deal_ref: str, retries: int = 6) -> str:
+def ig_confirm(auth: dict, deal_ref: str, tries: int = 6) -> dict:
     url = f"{auth['base']}/confirms/{deal_ref}"
-
     headers = {
         "Accept": "application/json",
-        "Version": "2",
+        "Version": "1",
         "X-IG-API-KEY": auth["api_key"],
         "CST": auth["cst"],
         "X-SECURITY-TOKEN": auth["xst"],
     }
 
-    for attempt in range(1, retries + 1):
+    delay = 0.4
+    last_err = None
+    for _ in range(tries):
         try:
-            r = requests.get(url, headers=headers, timeout=20)
-
-            # IG sometimes returns 500 while still processing
+            r = requests.get(url, headers=headers, timeout=15)
             if r.status_code >= 500:
-                raise RuntimeError(f"IG confirm temporary error {r.status_code}")
-
+                last_err = f"{r.status_code} {r.text}"
+                time.sleep(delay); delay *= 2
+                continue
             r.raise_for_status()
-            data = r.json()
-
-            deal_id = data.get("dealId")
-            if deal_id:
-                return deal_id
-
+            return r.json()
         except Exception as e:
-            if attempt == retries:
-                raise RuntimeError(
-                    f"IG confirm failed after {retries} attempts: {e}"
-                )
+            last_err = str(e)
+            time.sleep(delay); delay *= 2
 
-            time.sleep(0.8)  # 👈 crucial delay
+    raise RuntimeError(f"Confirm failed after retries: {last_err}")
 
-    raise RuntimeError("IG confirm failed (no dealId)")
-
-def ig_attach_tp_sl(
-    auth: dict,
-    *,
-    deal_id: str,
-    tp: float,
-    sl: float,
-) -> dict:
+def ig_attach_tp_sl(auth: dict, deal_id: str, tp: float, sl: float) -> dict:
     url = f"{auth['base']}/positions/otc/{deal_id}"
-
     headers = {
-        "Content-Type": "application/json",
         "Accept": "application/json",
+        "Content-Type": "application/json",
         "Version": "2",
         "X-IG-API-KEY": auth["api_key"],
         "CST": auth["cst"],
@@ -377,15 +354,15 @@ def ig_attach_tp_sl(
     }
 
     payload = {
-        "limitLevel": tp,        # ✅ take profit (absolute)
-        "stopLevel": sl,         # ✅ stop loss (absolute)
-        "guaranteedStop": False, # ✅ required when stopLevel is set
-        "trailingStop": False,   # ✅ explicitly false
+        "limitLevel": tp,
+        "stopLevel": sl,
+        "guaranteedStop": False,
+        "trailingStop": False,
     }
 
     r = requests.put(url, headers=headers, json=payload, timeout=20)
     r.raise_for_status()
-    return r.json()   # returns dealReference
+    return r.json()
 
 
 def init_decoder_from_html(html: str) -> None:
@@ -1136,25 +1113,19 @@ def main() -> None:
                     
 
                     # 1) Open market position (NO TP/SL here)
-                    deal_ref = ig_open_market(
-                        ig_auth,
-                        epic=epic,
-                        direction=direction,
-                        size=0.5,
-                    )
+                    deal_ref = ig_open_market(ig_auth, epic, direction, size)
+                    conf = ig_confirm(ig_auth, deal_ref)
                     
-                    # 2) Confirm until dealId exists (retry-safe)
-                    deal_id = ig_confirm_deal(ig_auth, deal_ref)
+                    if conf.get("dealStatus") != "ACCEPTED":
+                        raise RuntimeError(f"Deal rejected: {conf.get('reason')} | {conf}")
                     
-                    # 3) Attach TP/SL using PUT
-                    ig_attach_tp_sl(
-                        ig_auth,
-                        deal_id=deal_id,
-                        tp=tp,
-                        sl=sl,
-                    )
+                    deal_id = conf.get("dealId") or (conf.get("affectedDeals") or [{}])[0].get("dealId")
+                    if not deal_id:
+                        raise RuntimeError(f"No dealId in confirm: {conf}")
                     
-                    print(f"✅ {pair} opened + TP/SL attached")
+                    edit_resp = ig_attach_tp_sl(ig_auth, deal_id, tp, sl)
+                    print("TP/SL attached:", edit_resp)
+                    
                     
                     ordered_keys.add(k)
                 except Exception as e:
