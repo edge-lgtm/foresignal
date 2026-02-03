@@ -274,6 +274,7 @@ def ig_place_limit(
         "direction": direction,
         "orderType": "MARKET",
         "size": size,
+        "expiry": "-",
         "limitDistance": tp_distance,
         "stopDistance": sl_distance,
         "forceOpen": True,
