@@ -38,7 +38,7 @@ def post_to_blogger(subject: str, html_body: str) -> bool:
     smtp_pass = os.getenv("SMTP_PASS")
 
     if not to_addr or not smtp_user or not smtp_pass:
-        print("Blogger SMTP not configured.")
+        print("Blogger SMTP not confured.")
         return False
 
     try:
@@ -116,13 +116,13 @@ def load_ordered_keys() -> set[str]:
 def save_ordered_keys(keys: set[str]) -> None:
     ORDERED_FILE.write_text(json.dumps(sorted(keys), indent=2), encoding="utf-8")
 
-IG_BASE = "https://demo-api.ig.com/gateway/deal"
-IG_HEADERS_BASE = {
-    "Content-Type": "application/json",
+IG_BASE = "https://demo-api.ig.com/gateway/deal/session"
+headers = {
+    "Content-Type": "application/json; charset=UTF-8",
     "Accept": "application/json; charset=UTF-8",
-    "Version": "2",
+    "X-IG-API-KEY": IG_API_KEY,
+    "Version": "2"
 }
-
 PAIR_TO_EPIC = {
     "EUR/USD": "CS.D.EURUSD.MINI.IP",
     "GBP/USD": "CS.D.GBPUSD.MINI.IP",
@@ -130,26 +130,32 @@ PAIR_TO_EPIC = {
     # add more
 }
 
-def ig_login() -> dict:
-    api_key = os.getenv("IG_API_KEY")
-    username = os.getenv("IG_USERNAME")
-    password = os.getenv("IG_PASSWORD")
+def ig_login_demo() -> dict:
+    url = "https://demo-api.ig.com/gateway/deal/session"
 
-    if not api_key or not username or not password:
-        raise RuntimeError("Missing IG_API_KEY / IG_USERNAME / IG_PASSWORD")
+    headers = {
+        "Content-Type": "application/json; charset=UTF-8",
+        "Accept": "application/json; charset=UTF-8",
+        "X-IG-API-KEY": os.getenv("IG_API_KEY"),
+        "Version": "2"
+    }
 
-    r = requests.post(
-        f"{IG_BASE}/session",
-        headers={**IG_HEADERS_BASE, "X-IG-API-KEY": api_key},
-        json={"identifier": username, "password": password},
-        timeout=20,
-    )
-    r.raise_for_status()
+    payload = {
+        "identifier": os.getenv("IG_USERNAME"),
+        "password": os.getenv("IG_PASSWORD")
+    }
+
+    r = requests.post(url, headers=headers, json=payload, timeout=30)
+
+    if not r.ok:
+        raise RuntimeError(
+            f"IG login failed {r.status_code}: {r.text}"
+        )
 
     return {
-        "X-IG-API-KEY": api_key,
-        "CST": r.headers.get("CST"),
-        "X-SECURITY-TOKEN": r.headers.get("X-SECURITY-TOKEN"),
+        "cst": r.headers.get("CST"),
+        "xst": r.headers.get("X-SECURITY-TOKEN"),
+        "account_id": r.json().get("currentAccountId")
     }
 
 def ig_place_limit(
