@@ -4,7 +4,7 @@ import json
 import os
 import re
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timezone,timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -262,20 +262,21 @@ def ig_place_limit(
         "X-SECURITY-TOKEN": auth["xst"],
     }
 
+    gtd = (datetime.utcnow() + timedelta(days=1)).strftime("%Y/%m/%d %H:%M:%S")
 
     payload = {
         "epic": epic,
         "expiry": "-",
-        "direction": direction,          # "BUY" or "SELL"
+        "direction": direction,
         "orderType": "LIMIT",
         "size": size,
-        "level": entry,                  # entry price
-        "limitLevel": tp,                # take profit
-        "stopLevel": sl,                 # stop loss
-        "timeInForce": "GOOD_TILL_CANCELLED",
+        "level": entry,
+        "limitLevel": tp,
+        "stopLevel": sl,
+        "timeInForce": "GOOD_TILL_DATE",
+        "goodTillDate": gtd,     # ✅ REQUIRED
         "forceOpen": True,
         "guaranteedStop": False,
-        "currencyCode": "USD",
     }
     url = f"{auth['base']}/positions/otc"
     print("IG ORDER URL:", url)
