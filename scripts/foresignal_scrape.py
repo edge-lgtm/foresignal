@@ -253,7 +253,7 @@ def ig_place_limit(
     print(auth)
     headers = IG_HEADERS_BASE.copy()
     headers.update({
-        "X-IG-API-KEY": auth["X-IG-API-KEY"],
+        "X-IG-API-KEY": IG_API_KEY,
         "CST": auth["CST"],
         "X-SECURITY-TOKEN": auth["X-SECURITY-TOKEN"],
     })
