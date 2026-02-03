@@ -1042,21 +1042,12 @@ def ig_get_positions(auth: dict) -> list[dict]:
     r = requests.get(url, headers=ig_headers(auth), timeout=20)
     r.raise_for_status()
     return r.json().get("positions", [])
-def ig_close_position(auth: dict, deal_id: str, direction_to_close: str, size: float) -> dict:
-    """
-    direction_to_close must be opposite of the open position direction.
-    If position is BUY, close with SELL; if SELL, close with BUY.
-    """
-    url = f"{auth['base']}/positions/otc"
-    payload = {
-        "dealId": deal_id,
-        "direction": direction_to_close,
-        "orderType": "MARKET",
-        "size": size,
-    }
-    r = requests.post(url, headers=ig_headers(auth), json=payload, timeout=20)
+def ig_close_all_positions_for_epic(auth: dict, epic: str):
+    url = f"{auth['base']}/positions"
+    r = requests.get(url, headers=ig_headers(auth), timeout=20)
     r.raise_for_status()
-    return r.json()
+
+    positions
 def enforce_single_position_per_epic(auth: dict, epic: str) -> None:
     positions = ig_get_positions(auth)
 
