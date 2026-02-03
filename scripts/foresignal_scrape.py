@@ -158,8 +158,8 @@ IG_EPIC_MAP = {
 }
 def ig_login() -> dict:
     api_key =  IG_API_KEY
-    username =  "edwardlancelorilla"
-    password =  "eDwArD!@#1"
+    username =  IG_USERNAME
+    password =  IG_PASSWORD
 
     url = f"{IG_BASE}/session"
 
@@ -247,8 +247,8 @@ def ig_place_limit(
     headers = IG_HEADERS_BASE.copy()
     headers.update({
         "X-IG-API-KEY": IG_API_KEY,
-        "CST": auth["CST"],
-        "X-SECURITY-TOKEN": auth["X-SECURITY-TOKEN"],
+        "CST": auth["cst"],
+        "X-SECURITY-TOKEN": auth["xst"],
     })
 
     payload = {
