@@ -229,7 +229,13 @@ def ig_login_demo() -> dict:
         "xst": r.headers.get("X-SECURITY-TOKEN"),
         "account_id": r.json().get("currentAccountId")
     }
-
+IG_HEADERS_BASE = {
+    "Content-Type": "application/json",
+    "Accept": "application/json",
+    "Version": "2",
+    "X-IG-API-KEY": IG_API_KEY,
+    "clientPlatform": "WEB",
+}
 def ig_place_limit(
     auth: dict,
     *,
