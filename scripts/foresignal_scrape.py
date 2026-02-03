@@ -67,18 +67,18 @@ def send_telegram_html(text: str) -> bool:
         print("Telegram not configured.")
         return False
 
-    chunks = []
-    while len(text) > 3900:
-        cut = text.rfind("\n\n", 0, 3900)
-        if cut == -1:
-            cut = 3900
-        chunks.append(text[:cut].strip())
-        text = text[cut:].strip()
-    if text:
-        chunks.append(text)
-
-    url = f"https://api.telegram.org/bot{token}/sendMessage"
     try:
+        chunks = []
+        while len(text) > 3900:
+            cut = text.rfind("\n\n", 0, 3900)
+            if cut == -1:
+                cut = 3900
+            chunks.append(text[:cut].strip())
+            text = text[cut:].strip()
+        if text:
+            chunks.append(text)
+
+        url = f"https://api.telegram.org/bot{token}/sendMessage"
         for chunk in chunks:
             r = requests.post(
                 url,
@@ -91,10 +91,13 @@ def send_telegram_html(text: str) -> bool:
                 timeout=30,
             )
             r.raise_for_status()
+
         return True
+
     except Exception as e:
         print(f"Telegram send failed: {e}")
         return False
+
 
 
 ORDERED_FILE = DATA_DIR / "ordered_keys.json"
@@ -204,34 +207,37 @@ def init_decoder_from_html(html: str) -> None:
 NUM_RE = re.compile(r"[-+]?\d+(?:\.\d+)?")
 F_ENC_RE = re.compile(r"f\(\s*'([^']+)'\s*\)")
 HHMM_RE = re.compile(r"hhmm\((\d+)\)")  # unix seconds inside hhmm(....)
-def post_to_blogger(subject: str, html_body: str) -> None:
+def post_to_blogger(subject: str, html_body: str) -> bool:
     to_addr = os.getenv("BLOGGER_POST_EMAIL")
     smtp_host = os.getenv("SMTP_HOST", "smtp.gmail.com")
     smtp_port = int(os.getenv("SMTP_PORT", "587"))
     smtp_user = os.getenv("SMTP_USER")
     smtp_pass = os.getenv("SMTP_PASS")
 
-    if not to_addr:
-        print("Blogger email not configured. Set BLOGGER_POST_EMAIL.")
-        return
-    if not smtp_user or not smtp_pass:
-        print("SMTP not configured. Set SMTP_USER and SMTP_PASS.")
-        return
+    if not to_addr or not smtp_user or not smtp_pass:
+        print("Blogger SMTP not configured.")
+        return False
 
-    msg = EmailMessage()
-    msg["From"] = smtp_user
-    msg["To"] = to_addr
-    msg["Subject"] = subject
+    try:
+        msg = EmailMessage()
+        msg["From"] = smtp_user
+        msg["To"] = to_addr
+        msg["Subject"] = subject
 
-    # Blogger accepts HTML email content for posts.
-    msg.set_content("This post requires an HTML-capable email client.")
-    msg.add_alternative(html_body, subtype="html")
+        msg.set_content("HTML required")
+        msg.add_alternative(html_body, subtype="html")
 
-    with smtplib.SMTP(smtp_host, smtp_port, timeout=30) as s:
-        s.ehlo()
-        s.starttls()
-        s.login(smtp_user, smtp_pass)
-        s.send_message(msg)
+        with smtplib.SMTP(smtp_host, smtp_port, timeout=30) as s:
+            s.ehlo()
+            s.starttls()
+            s.login(smtp_user, smtp_pass)
+            s.send_message(msg)
+
+        return True
+
+    except Exception as e:
+        print(f"Blogger post failed: {e}")
+        return False
 # ---------------- DATA MODEL ----------------
 def is_open_and_unfilled(signal: Signal, now_ts: int) -> bool:
     if not signal.from_ts or not signal.till_ts:
