@@ -270,7 +270,7 @@ def ig_place_limit(
         "epic": epic,
         "expiry": "-",
         "direction": direction,        # BUY / SELL
-        "orderType": "LIMIT",
+        "orderType": "MARKET",
         "size": size,
         "level": entry,
         "limitLevel": tp,
