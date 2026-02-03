@@ -1028,7 +1028,54 @@ def send_telegram_html(text: str) -> None:
             timeout=30,
         )
         r.raise_for_status()
+def ig_headers(auth: dict) -> dict:
+    return {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "Version": "2",
+        "X-IG-API-KEY": auth["api_key"],
+        "CST": auth["cst"],
+        "X-SECURITY-TOKEN": auth["xst"],
+    }
+def ig_get_positions(auth: dict) -> list[dict]:
+    url = f"{auth['base']}/positions"
+    r = requests.get(url, headers=ig_headers(auth), timeout=20)
+    r.raise_for_status()
+    return r.json().get("positions", [])
+def ig_close_position(auth: dict, deal_id: str, direction_to_close: str, size: float) -> dict:
+    """
+    direction_to_close must be opposite of the open position direction.
+    If position is BUY, close with SELL; if SELL, close with BUY.
+    """
+    url = f"{auth['base']}/positions/otc"
+    payload = {
+        "dealId": deal_id,
+        "direction": direction_to_close,
+        "orderType": "MARKET",
+        "size": size,
+    }
+    r = requests.post(url, headers=ig_headers(auth), json=payload, timeout=20)
+    r.raise_for_status()
+    return r.json()
+def enforce_single_position_per_epic(auth: dict, epic: str) -> None:
+    positions = ig_get_positions(auth)
 
+    for p in positions:
+        pos = p.get("position", {})
+        mkt = p.get("market", {})
+        if mkt.get("epic") != epic:
+            continue
+
+        deal_id = pos.get("dealId")
+        open_dir = (pos.get("direction") or "").upper()  # BUY/SELL
+        open_size = float(pos.get("size") or 0)
+
+        if not deal_id or open_size <= 0:
+            continue
+
+        close_dir = "SELL" if open_dir == "BUY" else "BUY"
+        print(f"♻️ Closing existing {epic} position dealId={deal_id} dir={open_dir} size={open_size}")
+        ig_close_position(auth, deal_id=deal_id, direction_to_close=close_dir, size=open_size)
 def ig_get_open_positions(auth):
     url = f"{auth['base']}/positions"
     headers = {
