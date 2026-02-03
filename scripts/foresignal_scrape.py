@@ -272,11 +272,12 @@ def ig_place_limit(
         "direction": direction,        # BUY / SELL
         "orderType": "LIMIT",
         "size": size,
-        "level": entry,                # entry price
-        "limitLevel": tp,              # take profit
-        "stopLevel": sl,               # stop loss
+        "level": entry,
+        "limitLevel": tp,
+        "stopLevel": sl,
         "forceOpen": True,
         "guaranteedStop": False,
+        "currencyCode": "USD",         # ✅ REQUIRED
     }
 
     url = f"{auth['base']}/positions/otc"
