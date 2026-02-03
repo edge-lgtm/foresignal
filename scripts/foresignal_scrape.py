@@ -254,6 +254,7 @@ def ig_place_limit(
     sl: float,
     size: float = 0.5,
 ) -> dict:
+    print(1)
     headers = IG_HEADERS_BASE.copy()
     headers = {
         "Content-Type": "application/json",
@@ -263,9 +264,8 @@ def ig_place_limit(
         "CST": auth["cst"],
         "X-SECURITY-TOKEN": auth["xst"],
     }
-
-    gtd = (datetime.utcnow() + timedelta(days=1)).strftime("%Y/%m/%d %H:%M:%S")
-
+    print(2)
+    
     payload = {
         "epic": epic,
         "expiry": "-",
@@ -279,7 +279,7 @@ def ig_place_limit(
         "guaranteedStop": False,
         "currencyCode": "USD",         # ✅ REQUIRED
     }
-
+    print(3)
     url = f"{auth['base']}/positions/otc"
     print("IG ORDER URL:", url)
     print("IG ORDER HEADERS:", headers)
@@ -287,6 +287,7 @@ def ig_place_limit(
 
     r = requests.post(url, headers=headers, json=payload, timeout=20)
     print("IG ORDER RESPONSE:", r.status_code, r.text)
+    print(4)
     return r.json()
 
 def init_decoder_from_html(html: str) -> None:
