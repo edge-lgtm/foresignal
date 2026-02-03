@@ -158,7 +158,10 @@ def ig_login() -> dict:
         "X-IG-API-KEY": api_key,
         "Version": "3",
     }
-    payload = {"identifier": username, "password": password}
+    payload = {
+        "identifier": "edwardlancelorilla",
+        "password": "eDwArD!@#1"
+    }
 
     r = requests.post(url, headers=headers, json=payload, timeout=30)
     print("=== IG LOGIN RESPONSE ===")
