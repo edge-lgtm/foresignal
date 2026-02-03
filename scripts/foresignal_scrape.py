@@ -277,6 +277,7 @@ def ig_place_limit(
         "limitDistance": tp_distance,
         "stopDistance": sl_distance,
         "forceOpen": True,
+        "guaranteedStop": false,
         "currencyCode": "USD",
     }
     url = f"{auth['base']}/positions/otc"
