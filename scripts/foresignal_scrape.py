@@ -269,17 +269,16 @@ def ig_place_limit(
     payload = {
         "epic": epic,
         "expiry": "-",
-        "direction": direction,
+        "direction": direction,        # BUY / SELL
         "orderType": "LIMIT",
         "size": size,
-        "level": entry,
-        "limitLevel": tp,
-        "stopLevel": sl,
-        "timeInForce": "GOOD_TILL_DATE",
-        "goodTillDate": gtd,     # ✅ REQUIRED
+        "level": entry,                # entry price
+        "limitLevel": tp,              # take profit
+        "stopLevel": sl,               # stop loss
         "forceOpen": True,
         "guaranteedStop": False,
     }
+
     url = f"{auth['base']}/positions/otc"
     print("IG ORDER URL:", url)
     print("IG ORDER HEADERS:", headers)
