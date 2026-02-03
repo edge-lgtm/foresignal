@@ -154,7 +154,7 @@ def ig_login() -> dict:
         "Content-Type": "application/json; charset=UTF-8",
         "Accept": "application/json; charset=UTF-8",
         "X-IG-API-KEY": api_key,
-        "Version": "2",
+        "Version": "3",
     }
     payload = {"identifier": username, "password": password}
 
