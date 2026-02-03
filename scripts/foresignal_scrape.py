@@ -1042,12 +1042,33 @@ def ig_get_positions(auth: dict) -> list[dict]:
     r = requests.get(url, headers=ig_headers(auth), timeout=20)
     r.raise_for_status()
     return r.json().get("positions", [])
-def ig_close_all_positions_for_epic(auth: dict, epic: str):
-    url = f"{auth['base']}/positions"
-    r = requests.get(url, headers=ig_headers(auth), timeout=20)
-    r.raise_for_status()
 
-    positions
+def ig_close_position(auth: dict, deal_id: str, direction: str, size: float):
+    close_direction = "SELL" if direction == "BUY" else "BUY"
+
+    payload = {
+        "dealId": deal_id,
+        "direction": close_direction,
+        "orderType": "MARKET",   # ✅ REQUIRED
+        "size": float(size),
+        "expiry": "-",           # FX OTC
+        "forceOpen": False,      # closing trade
+    }
+
+    headers = {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "Version": "2",
+        "X-IG-API-KEY": auth["api_key"],
+        "CST": auth["cst"],
+        "X-SECURITY-TOKEN": auth["xst"],
+    }
+
+    url = f"{auth['base']}/positions/otc"
+
+    r = requests.post(url, headers=headers, json=payload, timeout=20)
+    print("CLOSE RESPONSE:", r.status_code, r.text)
+    r.raise_for_status()
 def enforce_single_position_per_epic(auth: dict, epic: str) -> None:
     positions = ig_get_positions(auth)
 
@@ -1122,8 +1143,8 @@ def ig_delete_working_orders_for_epic(auth: dict, epic: str) -> None:
         print(f"🗑️ Deleting working order {epic} dealId={deal_id} ->", rd.status_code, rd.text)
         rd.raise_for_status()
 def ig_close_all_positions_for_epic(auth: dict, epic: str):
+    url = f"{auth['base']}/positions"
     headers = {
-        "Content-Type": "application/json",
         "Accept": "application/json",
         "Version": "2",
         "X-IG-API-KEY": auth["api_key"],
@@ -1131,63 +1152,23 @@ def ig_close_all_positions_for_epic(auth: dict, epic: str):
         "X-SECURITY-TOKEN": auth["xst"],
     }
 
-    # 1️⃣ Get open positions
-    r = requests.get(f"{auth['base']}/positions", headers=headers, timeout=20)
+    r = requests.get(url, headers=headers, timeout=20)
     r.raise_for_status()
-    positions = r.json().get("positions", [])
 
-    for p in positions:
-        pos = p["position"]
-        mkt = p["market"]
-
-        if mkt["epic"] != epic:
+    for p in r.json()["positions"]:
+        if p["market"]["epic"] != epic:
             continue
 
-        deal_id = pos["dealId"]
-        size = pos["size"]
-        direction = "SELL" if pos["direction"] == "BUY" else "BUY"
+        pos = p["position"]
+        print(f"♻️ Closing OPEN position {epic} dealId={pos['dealId']}")
 
-        print(f"♻️ Closing OPEN position {epic} dealId={deal_id}")
-
-        payload = {
-            "dealId": deal_id,
-            "direction": direction,
-            "size": size,
-            "expiry": "-",     # 🔑 REQUIRED
-        }
-
-        rc = requests.post(
-            f"{auth['base']}/positions/otc",
-            headers=headers,
-            json=payload,
-            timeout=20,
+        ig_close_position(
+            auth,
+            deal_id=pos["dealId"],
+            direction=pos["direction"],
+            size=pos["size"],
         )
 
-        print("CLOSE RESPONSE:", rc.status_code, rc.text)
-        rc.raise_for_status()
-def ig_delete_all_working_orders_for_epic(auth: dict, epic: str):
-    url = f"{auth['base']}/workingorders"
-    r = requests.get(url, headers=ig_headers(auth), timeout=20)
-    r.raise_for_status()
-
-    orders = r.json().get("workingOrders", [])
-
-    for o in orders:
-        market = o.get("market", {})
-        wo = o.get("workingOrder", {})
-
-        if market.get("epic") != epic:
-            continue
-
-        deal_id = wo.get("dealId")
-        if not deal_id:
-            continue
-
-        print(f"🗑️ Deleting WORKING order {epic} dealId={deal_id}")
-
-        del_url = f"{auth['base']}/workingorders/otc/{deal_id}"
-        rd = requests.delete(del_url, headers=ig_headers(auth), timeout=20)
-        rd.raise_for_status()
 # ---------------- MAIN ----------------
 def main() -> None:
     html = fetch_html(URL)
