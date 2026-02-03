@@ -289,6 +289,90 @@ def ig_place_limit(
     print(4)
     return r.json()
 
+def ig_open_market(auth: dict, *, epic: str, direction: str, size: float) -> str:
+    """
+    Opens a MARKET trade.
+    Returns dealReference.
+    """
+    url = f"{auth['base']}/positions/otc"
+
+    headers = {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "Version": "2",
+        "X-IG-API-KEY": auth["api_key"],
+        "CST": auth["cst"],
+        "X-SECURITY-TOKEN": auth["xst"],
+    }
+
+    payload = {
+        "epic": epic,
+        "expiry": "-",
+        "direction": direction,    # BUY or SELL
+        "orderType": "MARKET",
+        "size": size,
+        "forceOpen": True,
+        "guaranteedStop": False,
+        "currencyCode": "USD",
+    }
+
+    r = requests.post(url, headers=headers, json=payload, timeout=20)
+    r.raise_for_status()
+
+    data = r.json()
+    return data["dealReference"]
+
+def ig_confirm_deal(auth: dict, deal_ref: str) -> str:
+    """
+    Confirms a trade and returns dealId.
+    """
+    url = f"{auth['base']}/confirms/{deal_ref}"
+
+    headers = {
+        "Accept": "application/json",
+        "Version": "2",
+        "X-IG-API-KEY": auth["api_key"],
+        "CST": auth["cst"],
+        "X-SECURITY-TOKEN": auth["xst"],
+    }
+
+    r = requests.get(url, headers=headers, timeout=20)
+    r.raise_for_status()
+
+    data = r.json()
+    return data["dealId"]
+
+def ig_attach_tp_sl(
+    auth: dict,
+    *,
+    deal_id: str,
+    tp: float,
+    sl: float
+) -> None:
+    """
+    Attaches TP/SL price levels to an existing position.
+    """
+    url = f"{auth['base']}/positions/otc/{deal_id}"
+
+    headers = {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "Version": "2",
+        "X-IG-API-KEY": auth["api_key"],
+        "CST": auth["cst"],
+        "X-SECURITY-TOKEN": auth["xst"],
+    }
+
+    payload = {
+        "limitLevel": tp,      # TAKE PROFIT price
+        "stopLevel": sl,       # STOP LOSS price
+        "guaranteedStop": False,
+    }
+
+    r = requests.put(url, headers=headers, json=payload, timeout=20)
+    r.raise_for_status()
+
+
 def init_decoder_from_html(html: str) -> None:
     """
     Pulls the live obfuscation MAP and base from the site JS:
@@ -1033,21 +1117,27 @@ def main() -> None:
 
                 tp = float(s.take_profit_at)
                 sl = float(s.stop_loss_at)
-                print(tp)
-                print(3)
-                print(sl)
-                print(4)
                 try:
-                    resp = ig_place_limit(
+                    
+
+                    deal_ref = ig_open_market(
                         ig_auth,
                         epic=epic,
                         direction=direction,
-                        entry=entry,
-                        tp=tp,
-                        sl=sl,
                         size=float(os.getenv("IG_SIZE", "0.5")),
                     )
-                    print(f"✅ IG order placed for {s.pair}: {resp}")
+                    
+                    deal_id = ig_confirm_deal(ig_auth, deal_ref)
+                    
+                    ig_attach_tp_sl(
+                        ig_auth,
+                        deal_id=deal_id,
+                        tp=float(s.take_profit_at),
+                        sl=float(s.stop_loss_at),
+                    )
+                    
+                    print(f"✅ IG MARKET order opened + TP/SL attached for {s.pair}")
+                    
                     ordered_keys.add(k)
                 except Exception as e:
                     print(f"❌ IG order failed for {s.pair}: {e}")
