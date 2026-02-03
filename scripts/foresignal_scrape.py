@@ -1113,7 +1113,7 @@ def main() -> None:
                     
 
                     # 1) Open market position (NO TP/SL here)
-                    deal_ref = ig_open_market(ig_auth, epic, direction, size)
+                    deal_ref = ig_open_market(ig_auth, epic, direction, 0.05)
                     conf = ig_confirm(ig_auth, deal_ref)
                     
                     if conf.get("dealStatus") != "ACCEPTED":
