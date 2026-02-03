@@ -163,7 +163,7 @@ def ig_login() -> dict:
 
     base = "https://demo-api.ig.com" if IG_DEMO else "https://api.ig.com"
     url = f"{base}/gateway/deal/session"
-    print(url)
+    
     
 
     headers = {
@@ -201,10 +201,11 @@ def ig_login() -> dict:
         raise RuntimeError(f"IG login failed {r.status_code}: {r.text}")
 
     return {
+        "api_key": api_key,                         # ✅ ADD THIS
         "cst": r.headers.get("CST"),
         "xst": r.headers.get("X-SECURITY-TOKEN"),
-        "account_id": r.json().get("currentAccountId"),
-        "base": base
+        "account_id": body.get("accountId"),
+        "base": f"{base}/gateway/deal", 
     }
 def ig_login_demo() -> dict:
     url = "https://demo-api.ig.com/gateway/deal/session"
@@ -251,14 +252,19 @@ def ig_place_limit(
     size: float = 0.5,
 ) -> dict:
     headers = IG_HEADERS_BASE.copy()
-    headers.update({
-        "X-IG-API-KEY": IG_API_KEY,
+    headers = {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "Version": "2",
+        "X-IG-API-KEY": auth["api_key"],   # ✅ NOW PRESENT
         "CST": auth["cst"],
         "X-SECURITY-TOKEN": auth["xst"],
-    })
+    }
+
 
     payload = {
         "epic": epic,
+        "expiry": "-",
         "direction": direction,          # "BUY" or "SELL"
         "orderType": "LIMIT",
         "size": size,
@@ -270,8 +276,13 @@ def ig_place_limit(
         "guaranteedStop": False,
         "currencyCode": "USD",
     }
-    r = requests.post("https://demo-api.ig.com/gateway/deal/positions/otc", headers=headers, json=payload, timeout=20)
-    r.raise_for_status()
+    url = f"{auth['base']}/positions/otc"
+    print("IG ORDER URL:", url)
+    print("IG ORDER HEADERS:", headers)
+    print("IG ORDER PAYLOAD:", payload)
+
+    r = requests.post(url, headers=headers, json=payload, timeout=20)
+    print("IG ORDER RESPONSE:", r.status_code, r.text)
     return r.json()
 
 def init_decoder_from_html(html: str) -> None:
