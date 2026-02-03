@@ -1086,39 +1086,48 @@ def find_existing_position(positions, epic):
     return None
 
 def ig_close_all_positions_for_epic(auth: dict, epic: str):
-    url = f"{auth['base']}/positions"
-    r = requests.get(url, headers=ig_headers(auth), timeout=20)
-    r.raise_for_status()
+    headers = {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "Version": "2",
+        "X-IG-API-KEY": auth["api_key"],
+        "CST": auth["cst"],
+        "X-SECURITY-TOKEN": auth["xst"],
+    }
 
+    # 1️⃣ Get open positions
+    r = requests.get(f"{auth['base']}/positions", headers=headers, timeout=20)
+    r.raise_for_status()
     positions = r.json().get("positions", [])
 
     for p in positions:
-        market = p.get("market", {})
-        pos = p.get("position", {})
+        pos = p["position"]
+        mkt = p["market"]
 
-        if market.get("epic") != epic:
+        if mkt["epic"] != epic:
             continue
 
-        deal_id = pos.get("dealId")
-        size = float(pos.get("size", 0))
-        direction = pos.get("direction")
-
-        if not deal_id or size <= 0:
-            continue
-
-        close_dir = "SELL" if direction == "BUY" else "BUY"
+        deal_id = pos["dealId"]
+        size = pos["size"]
+        direction = "SELL" if pos["direction"] == "BUY" else "BUY"
 
         print(f"♻️ Closing OPEN position {epic} dealId={deal_id}")
 
         payload = {
             "dealId": deal_id,
-            "direction": close_dir,
-            "orderType": "MARKET",
+            "direction": direction,
             "size": size,
+            "expiry": "-",     # 🔑 REQUIRED
         }
 
-        close_url = f"{auth['base']}/positions/otc"
-        rc = requests.post(close_url, headers=ig_headers(auth), json=payload, timeout=20)
+        rc = requests.post(
+            f"{auth['base']}/positions/otc",
+            headers=headers,
+            json=payload,
+            timeout=20,
+        )
+
+        print("CLOSE RESPONSE:", rc.status_code, rc.text)
         rc.raise_for_status()
 def ig_delete_all_working_orders_for_epic(auth: dict, epic: str):
     url = f"{auth['base']}/workingorders"
