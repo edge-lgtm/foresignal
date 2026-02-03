@@ -183,40 +183,7 @@ def ig_place_limit(
     r = requests.post(f"{IG_BASE}/positions/otc", headers=headers, json=payload, timeout=20)
     r.raise_for_status()
     return r.json()
-def is_open_and_unfilled(signal: Signal, now_ts: int) -> bool:
-    if not signal.from_ts or not signal.till_ts:
-        return False
 
-    if not (signal.from_ts <= now_ts <= signal.till_ts):
-        return False
-
-    status = (signal.status or "").lower()
-    if status in ("filled", "cancelled", "expired"):
-        return False
-
-    if signal.bought_at or signal.sold_at:
-        return False
-
-    return True
-def get_new_open_signals(
-    prev: list[dict] | None,
-    cur: list[Signal]
-) -> list[Signal]:
-    now_ts = now_unix()
-
-    prev_keys = set()
-    if prev:
-        prev_keys = {p["key"] for p in prev if "key" in p}
-
-    new_open = []
-    for s in cur:
-        if s.key() in prev_keys:
-            continue
-
-        if is_open_and_unfilled(s, now_ts):
-            new_open.append(s)
-
-    return new_open
 def init_decoder_from_html(html: str) -> None:
     """
     Pulls the live obfuscation MAP and base from the site JS:
@@ -266,6 +233,40 @@ def post_to_blogger(subject: str, html_body: str) -> None:
         s.login(smtp_user, smtp_pass)
         s.send_message(msg)
 # ---------------- DATA MODEL ----------------
+def is_open_and_unfilled(signal: Signal, now_ts: int) -> bool:
+    if not signal.from_ts or not signal.till_ts:
+        return False
+
+    if not (signal.from_ts <= now_ts <= signal.till_ts):
+        return False
+
+    status = (signal.status or "").lower()
+    if status in ("filled", "cancelled", "expired"):
+        return False
+
+    if signal.bought_at or signal.sold_at:
+        return False
+
+    return True
+def get_new_open_signals(
+    prev: list[dict] | None,
+    cur: list[Signal]
+) -> list[Signal]:
+    now_ts = now_unix()
+
+    prev_keys = set()
+    if prev:
+        prev_keys = {p["key"] for p in prev if "key" in p}
+
+    new_open = []
+    for s in cur:
+        if s.key() in prev_keys:
+            continue
+
+        if is_open_and_unfilled(s, now_ts):
+            new_open.append(s)
+
+    return new_open
 @dataclass
 class Signal:
     pair: str
@@ -851,31 +852,46 @@ def main() -> None:
     init_decoder_from_html(html)
     signals = parse_signals(html)
 
-    prev = load_previous()
-    new_open = get_new_open_signals(prev, signals)
+    prev = load_previous()  # previous snapshot list[dict] or None
+    new_open_signals = get_new_open_signals(prev, signals)
 
-    # Always save snapshot state at end (so "new" becomes "known" next run)
-    # But we only order if send actually happened.
+    # Always save snapshot at end so "new" becomes "known" next run
+    # (but only trade if send succeeded)
     ordered_keys = load_ordered_keys()
 
-    if new_open:
-        pulled_at = datetime.now(TZ).strftime("%Y-%m-%d %H:%M")
-        report = build_full_snapshot(
-            new_open,
-            pulled_at,
-            prefix="🆕 New OPEN Signals (Unfilled)"
-        )
+    if not new_open_signals:
+        print("No new open/unfilled signals.")
+        save_current(signals)
+        return
 
-        # 1) send notifications
-        sent_tg = send_telegram_html(report)
-        subject = f"Foresignal NEW OPEN - {pulled_at} (UTC+8)"
-        sent_blog = post_to_blogger(subject=subject, html_body=report)
+    pulled_at = datetime.now(TZ).strftime("%Y-%m-%d %H:%M")
 
-        # 2) if send triggered → place IG orders
-        if sent_tg or sent_blog:
-            ig_auth = ig_login()
+    # Build a report for ONLY the new open signals (includes TP & SL already)
+    report = build_full_snapshot(
+        new_open_signals,
+        pulled_at,
+        prefix="🆕 New OPEN Signals (Unfilled)"
+    )
 
-            for s in new_open:
+    # 1) Send notifications
+    sent_tg = send_telegram_html(report)
+
+    subject = f"Foresignal NEW OPEN - {pulled_at} (UTC+8)"
+    sent_blog = post_to_blogger(subject=subject, html_body=report)
+
+    print(f"Telegram sent? {sent_tg}")
+    print(f"Blogger posted? {sent_blog}")
+
+    # 2) If "send triggered" → place IG orders
+    if sent_tg or sent_blog:
+        try:
+            ig_auth = ig_login()  # expects IG_API_KEY/IG_USERNAME/IG_PASSWORD in env
+        except Exception as e:
+            print(f"IG login failed: {e}")
+            ig_auth = None
+
+        if ig_auth:
+            for s in new_open_signals:
                 k = s.key()
                 if k in ordered_keys:
                     continue
@@ -885,7 +901,7 @@ def main() -> None:
                     print(f"⚠️ No IG EPIC mapping for {s.pair}; skipping.")
                     continue
 
-                # Decide direction + entry from your fields
+                # Direction + entry
                 if s.buy_at:
                     direction = "BUY"
                     entry = float(s.buy_at)
@@ -893,9 +909,10 @@ def main() -> None:
                     direction = "SELL"
                     entry = float(s.sell_at)
                 else:
-                    print(f"⚠️ No entry price for {s.pair}; skipping.")
+                    print(f"⚠️ Missing buy_at/sell_at for {s.pair}; skipping.")
                     continue
 
+                # TP/SL required
                 if not s.take_profit_at or not s.stop_loss_at:
                     print(f"⚠️ Missing TP/SL for {s.pair}; skipping.")
                     continue
@@ -903,26 +920,26 @@ def main() -> None:
                 tp = float(s.take_profit_at)
                 sl = float(s.stop_loss_at)
 
-                resp = ig_place_limit(
-                    ig_auth,
-                    epic=epic,
-                    direction=direction,
-                    entry=entry,
-                    tp=tp,
-                    sl=sl,
-                    size=float(os.getenv("IG_SIZE", "0.5")),
-                )
-
-                print(f"✅ IG order placed for {s.pair}: {resp}")
-                ordered_keys.add(k)
+                try:
+                    resp = ig_place_limit(
+                        ig_auth,
+                        epic=epic,
+                        direction=direction,
+                        entry=entry,
+                        tp=tp,
+                        sl=sl,
+                        size=float(os.getenv("IG_SIZE", "0.5")),
+                    )
+                    print(f"✅ IG order placed for {s.pair}: {resp}")
+                    ordered_keys.add(k)
+                except Exception as e:
+                    print(f"❌ IG order failed for {s.pair}: {e}")
 
             save_ordered_keys(ordered_keys)
-        else:
-            print("No notification sent; IG order NOT placed.")
     else:
-        print("No new open/unfilled signals.")
+        print("No notification sent; IG order NOT placed.")
 
-    # Save current snapshot so "new" logic is correct next run
+    # 3) Save current snapshot (so these are not 'new' next run)
     save_current(signals)
 
 
