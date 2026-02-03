@@ -158,8 +158,8 @@ IG_EPIC_MAP = {
 }
 def ig_login() -> dict:
     api_key =  IG_API_KEY
-    username =  IG_USERNAME
-    password =  IG_PASSWORD
+    username =  "edwardlancelorilla"
+    password =  "eDwArD!@#1"
 
     url = f"{IG_BASE}/session"
 
