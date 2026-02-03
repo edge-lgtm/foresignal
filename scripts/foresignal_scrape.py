@@ -204,7 +204,7 @@ def ig_login() -> dict:
         "api_key": api_key,                         # ✅ ADD THIS
         "cst": r.headers.get("CST"),
         "xst": r.headers.get("X-SECURITY-TOKEN"),
-        "account_id": body.get("accountId"),
+        "account_id": r.get("accountId"),
         "base": f"{base}/gateway/deal", 
     }
 def ig_login_demo() -> dict:
