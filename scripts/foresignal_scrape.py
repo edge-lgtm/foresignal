@@ -1227,6 +1227,7 @@ def main() -> None:
                     continue
                 ig_close_all_positions_for_epic(ig_auth, epic)
                 ig_delete_working_orders_for_epic(ig_auth, epic)
+
                 
 
                 # Direction + entry
