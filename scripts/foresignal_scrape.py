@@ -157,54 +157,47 @@ IG_EPIC_MAP = {
     "GBP/CHF": "CS.D.GBPCHF.MINI.IP",
 }
 def ig_login() -> dict:
-    api_key = require_env("IG_API_KEY")
-    username = require_env("IG_USERNAME")
-    password = require_env("IG_PASSWORD")
+    api_key =  IG_API_KEY
+    username =  IG_USERNAME
+    password =  IG_PASSWORD
 
-    base = "https://demo-api.ig.com" if IG_DEMO else "https://api.ig.com"
-    url = f"{base}/gateway/deal/session"
-    print(url)
-    
+    url = f"{IG_BASE}/session"
 
     headers = {
         "Content-Type": "application/json; charset=UTF-8",
         "Accept": "application/json; charset=UTF-8",
         "X-IG-API-KEY": api_key,
-        "Version": "2",
-    }
-    payload = {
-        "identifier": "edwardlancelorilla",
-        "password": "eDwArD!@#1"
+        "Version": "2",          # ✅ important
+        "clientPlatform": "WEB", # ✅ helps sometimes
     }
 
+    payload = {"identifier": username, "password": password}
+
     r = requests.post(url, headers=headers, json=payload, timeout=30)
+
+    # debug (optional)
     print("=== IG LOGIN RESPONSE ===")
-    print("URL:", r.url)
-    print("Status code:", r.status_code)
-    print("Reason:", r.reason)
-    
-    print("\n--- HEADERS ---")
-    for k, v in r.headers.items():
-        print(f"{k}: {v}")
-    
-    print("\n--- BODY (raw text) ---")
-    print(r.text)
-    
-    print("\n--- BODY (json parsed, if possible) ---")
-    try:
-        print(json.dumps(r.json(), indent=2))
-    except Exception as e:
-        print("Not JSON:", e)
-    
-    print("=== END RESPONSE ===")
+    print("Status:", r.status_code, r.reason)
+    print("CST:", r.headers.get("CST"))
+    print("XST:", r.headers.get("X-SECURITY-TOKEN"))
+    print("Body:", r.text[:300])
+    print("=== END ===")
+
     if not r.ok:
         raise RuntimeError(f"IG login failed {r.status_code}: {r.text}")
 
+    cst = r.headers.get("CST")
+    xst = r.headers.get("X-SECURITY-TOKEN")
+    if not cst or not xst:
+        raise RuntimeError("IG login succeeded but CST / X-SECURITY-TOKEN headers are missing.")
+
+    body = r.json()
     return {
-        "cst": r.headers.get("CST"),
-        "xst": r.headers.get("X-SECURITY-TOKEN"),
-        "account_id": r.json().get("currentAccountId"),
-        "base": base
+        "X-IG-API-KEY": api_key,                 # ✅ needed later
+        "CST": cst,
+        "X-SECURITY-TOKEN": xst,
+        "account_id": body.get("accountId") or body.get("currentAccountId"),
+        "base": IG_BASE,
     }
 def ig_login_demo() -> dict:
     url = "https://demo-api.ig.com/gateway/deal/session"
