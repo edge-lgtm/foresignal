@@ -997,7 +997,7 @@ def main() -> None:
         except Exception as e:
             print(f"IG login failed: {e}")
             ig_auth = None
-
+        print(ig_auth)
         if ig_auth:
             for s in new_open_signals:
                 k = s.key()
@@ -1008,6 +1008,8 @@ def main() -> None:
                 if not epic:
                     print(f"⚠️ No IG EPIC mapping for {s.pair}; skipping.")
                     continue
+
+                
 
                 # Direction + entry
                 if s.buy_at:
