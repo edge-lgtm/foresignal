@@ -1084,7 +1084,43 @@ def find_existing_position(positions, epic):
         if p["market"]["epic"] == epic:
             return p
     return None
+def ig_get_working_orders(auth: dict) -> list[dict]:
+    url = f"{auth['base']}/workingorders"
+    headers = {
+        "Accept": "application/json",
+        "Version": "2",
+        "X-IG-API-KEY": auth["api_key"],
+        "CST": auth["cst"],
+        "X-SECURITY-TOKEN": auth["xst"],
+    }
+    r = requests.get(url, headers=headers, timeout=20)
+    r.raise_for_status()
+    return r.json().get("workingOrders", [])
 
+def ig_delete_working_orders_for_epic(auth: dict, epic: str) -> None:
+    orders = ig_get_working_orders(auth)
+
+    headers = {
+        "Accept": "application/json",
+        "Version": "2",
+        "X-IG-API-KEY": auth["api_key"],
+        "CST": auth["cst"],
+        "X-SECURITY-TOKEN": auth["xst"],
+    }
+
+    for o in orders:
+        wo = o.get("workingOrder", {})
+        if wo.get("epic") != epic:
+            continue
+
+        deal_id = wo.get("dealId")
+        if not deal_id:
+            continue
+
+        url = f"{auth['base']}/workingorders/otc/{deal_id}"
+        rd = requests.delete(url, headers=headers, timeout=20)
+        print(f"🗑️ Deleting working order {epic} dealId={deal_id} ->", rd.status_code, rd.text)
+        rd.raise_for_status()
 def ig_close_all_positions_for_epic(auth: dict, epic: str):
     headers = {
         "Content-Type": "application/json",
@@ -1209,7 +1245,7 @@ def main() -> None:
                     print(f"⚠️ No IG EPIC mapping for {s.pair}; skipping.")
                     continue
                 ig_close_all_positions_for_epic(ig_auth, epic)
-                ig_delete_all_working_orders_for_epic(ig_auth, epic)
+                ig_delete_working_orders_for_epic(ig_auth, epic)
                 
 
                 # Direction + entry
