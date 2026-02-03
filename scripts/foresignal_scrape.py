@@ -246,12 +246,12 @@ def ig_place_limit(
     sl: float,
     size: float = 0.5,
 ) -> dict:
-    headers = {
-        headers = IG_HEADERS_BASE.copy(),
+    headers = IG_HEADERS_BASE.copy()
+    headers.update({
         "X-IG-API-KEY": auth["X-IG-API-KEY"],
         "CST": auth["CST"],
         "X-SECURITY-TOKEN": auth["X-SECURITY-TOKEN"],
-    }
+    })
 
     payload = {
         "epic": epic,
