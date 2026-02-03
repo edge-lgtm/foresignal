@@ -146,7 +146,7 @@ def ig_login_demo() -> dict:
     }
 
     r = requests.post(url, headers=headers, json=payload, timeout=30)
-
+    print("IG RESPONSE:", r.status_code, r.text)
     if not r.ok:
         raise RuntimeError(
             f"IG login failed {r.status_code}: {r.text}"
