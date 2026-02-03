@@ -1029,7 +1029,82 @@ def send_telegram_html(text: str) -> None:
         )
         r.raise_for_status()
 
+def ig_get_open_positions(auth):
+    url = f"{auth['base']}/positions"
+    headers = {
+        "X-IG-API-KEY": auth["api_key"],
+        "CST": auth["cst"],
+        "X-SECURITY-TOKEN": auth["xst"],
+        "Version": "2",
+        "Accept": "application/json",
+    }
+    r = requests.get(url, headers=headers, timeout=20)
+    r.raise_for_status()
+    return r.json()["positions"]
+def find_existing_position(positions, epic):
+    for p in positions:
+        if p["market"]["epic"] == epic:
+            return p
+    return None
 
+def ig_close_all_positions_for_epic(auth: dict, epic: str):
+    url = f"{auth['base']}/positions"
+    r = requests.get(url, headers=ig_headers(auth), timeout=20)
+    r.raise_for_status()
+
+    positions = r.json().get("positions", [])
+
+    for p in positions:
+        market = p.get("market", {})
+        pos = p.get("position", {})
+
+        if market.get("epic") != epic:
+            continue
+
+        deal_id = pos.get("dealId")
+        size = float(pos.get("size", 0))
+        direction = pos.get("direction")
+
+        if not deal_id or size <= 0:
+            continue
+
+        close_dir = "SELL" if direction == "BUY" else "BUY"
+
+        print(f"♻️ Closing OPEN position {epic} dealId={deal_id}")
+
+        payload = {
+            "dealId": deal_id,
+            "direction": close_dir,
+            "orderType": "MARKET",
+            "size": size,
+        }
+
+        close_url = f"{auth['base']}/positions/otc"
+        rc = requests.post(close_url, headers=ig_headers(auth), json=payload, timeout=20)
+        rc.raise_for_status()
+def ig_delete_all_working_orders_for_epic(auth: dict, epic: str):
+    url = f"{auth['base']}/workingorders"
+    r = requests.get(url, headers=ig_headers(auth), timeout=20)
+    r.raise_for_status()
+
+    orders = r.json().get("workingOrders", [])
+
+    for o in orders:
+        market = o.get("market", {})
+        wo = o.get("workingOrder", {})
+
+        if market.get("epic") != epic:
+            continue
+
+        deal_id = wo.get("dealId")
+        if not deal_id:
+            continue
+
+        print(f"🗑️ Deleting WORKING order {epic} dealId={deal_id}")
+
+        del_url = f"{auth['base']}/workingorders/otc/{deal_id}"
+        rd = requests.delete(del_url, headers=ig_headers(auth), timeout=20)
+        rd.raise_for_status()
 # ---------------- MAIN ----------------
 def main() -> None:
     html = fetch_html(URL)
@@ -1077,18 +1152,17 @@ def main() -> None:
         if ig_auth:
             for s in new_open_signals:
                 k = s.key()
-                print(k)
-                print(1)
+                
                 if k in ordered_keys:
                     continue
 
                 epic = PAIR_TO_EPIC.get(s.pair)
-                print(epic)
-                print(2)
+                 
                 if not epic:
                     print(f"⚠️ No IG EPIC mapping for {s.pair}; skipping.")
                     continue
-
+                ig_close_all_positions_for_epic(ig_auth, epic)
+                ig_delete_all_working_orders_for_epic(ig_auth, epic)
                 
 
                 # Direction + entry
