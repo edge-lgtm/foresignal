@@ -1,6 +1,6 @@
 {
   "source": "foresignal.com",
-  "pulled_at": "2026-02-03T08:40:35+08:00",
+  "pulled_at": "2026-02-03T08:45:34+08:00",
   "signals": [
     {
       "pair": "AUD/USD",
@@ -32,17 +32,17 @@
     },
     {
       "pair": "EUR/USD",
-      "status": "Filled",
-      "from_ts": 1770067320,
-      "till_ts": 1770088920,
+      "status": "",
+      "from_ts": null,
+      "till_ts": null,
       "sell_at": "",
       "buy_at": "",
-      "bought_at": "1.1790",
-      "sold_at": "1.1825",
+      "bought_at": "",
+      "sold_at": "",
       "take_profit_at": "",
       "stop_loss_at": "",
-      "pips": 35,
-      "key": "EUR/USD|1770067320|1770088920"
+      "pips": null,
+      "key": "EUR/USD|0|0"
     },
     {
       "pair": "GBP/CHF",
