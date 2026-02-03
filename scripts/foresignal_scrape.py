@@ -178,6 +178,7 @@ def ig_login() -> dict:
     }
 
     r = requests.post(url, headers=headers, json=payload, timeout=30)
+    body = r.json()
     print("=== IG LOGIN RESPONSE ===")
     print("URL:", r.url)
     print("Status code:", r.status_code)
@@ -204,7 +205,7 @@ def ig_login() -> dict:
         "api_key": api_key,                         # ✅ ADD THIS
         "cst": r.headers.get("CST"),
         "xst": r.headers.get("X-SECURITY-TOKEN"),
-        "account_id": r.get("accountId"),
+        "account_id": body.get("accountId"),
         "base": f"{base}/gateway/deal", 
     }
 def ig_login_demo() -> dict:
