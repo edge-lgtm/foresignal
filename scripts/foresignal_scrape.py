@@ -322,10 +322,7 @@ def ig_open_market(auth: dict, *, epic: str, direction: str, size: float) -> str
     data = r.json()
     return data["dealReference"]
 
-def ig_confirm_deal(auth: dict, deal_ref: str) -> str:
-    """
-    Confirms a trade and returns dealId.
-    """
+def ig_confirm_deal(auth: dict, deal_ref: str, retries: int = 6) -> str:
     url = f"{auth['base']}/confirms/{deal_ref}"
 
     headers = {
@@ -336,22 +333,38 @@ def ig_confirm_deal(auth: dict, deal_ref: str) -> str:
         "X-SECURITY-TOKEN": auth["xst"],
     }
 
-    r = requests.get(url, headers=headers, timeout=20)
-    r.raise_for_status()
+    for attempt in range(1, retries + 1):
+        try:
+            r = requests.get(url, headers=headers, timeout=20)
 
-    data = r.json()
-    return data["dealId"]
+            # IG sometimes returns 500 while still processing
+            if r.status_code >= 500:
+                raise RuntimeError(f"IG confirm temporary error {r.status_code}")
+
+            r.raise_for_status()
+            data = r.json()
+
+            deal_id = data.get("dealId")
+            if deal_id:
+                return deal_id
+
+        except Exception as e:
+            if attempt == retries:
+                raise RuntimeError(
+                    f"IG confirm failed after {retries} attempts: {e}"
+                )
+
+            time.sleep(0.8)  # 👈 crucial delay
+
+    raise RuntimeError("IG confirm failed (no dealId)")
 
 def ig_attach_tp_sl(
     auth: dict,
     *,
     deal_id: str,
     tp: float,
-    sl: float
-) -> None:
-    """
-    Attaches TP/SL price levels to an existing position.
-    """
+    sl: float,
+) -> dict:
     url = f"{auth['base']}/positions/otc/{deal_id}"
 
     headers = {
@@ -364,13 +377,15 @@ def ig_attach_tp_sl(
     }
 
     payload = {
-        "limitLevel": tp,      # TAKE PROFIT price
-        "stopLevel": sl,       # STOP LOSS price
-        "guaranteedStop": False,
+        "limitLevel": tp,        # ✅ take profit (absolute)
+        "stopLevel": sl,         # ✅ stop loss (absolute)
+        "guaranteedStop": False, # ✅ required when stopLevel is set
+        "trailingStop": False,   # ✅ explicitly false
     }
 
     r = requests.put(url, headers=headers, json=payload, timeout=20)
     r.raise_for_status()
+    return r.json()   # returns dealReference
 
 
 def init_decoder_from_html(html: str) -> None:
@@ -1120,23 +1135,26 @@ def main() -> None:
                 try:
                     
 
+                    # 1) Open market position (NO TP/SL here)
                     deal_ref = ig_open_market(
                         ig_auth,
                         epic=epic,
                         direction=direction,
-                        size=float(os.getenv("IG_SIZE", "0.5")),
+                        size=0.5,
                     )
                     
+                    # 2) Confirm until dealId exists (retry-safe)
                     deal_id = ig_confirm_deal(ig_auth, deal_ref)
                     
+                    # 3) Attach TP/SL using PUT
                     ig_attach_tp_sl(
                         ig_auth,
                         deal_id=deal_id,
-                        tp=float(s.take_profit_at),
-                        sl=float(s.stop_loss_at),
+                        tp=tp,
+                        sl=sl,
                     )
                     
-                    print(f"✅ IG MARKET order opened + TP/SL attached for {s.pair}")
+                    print(f"✅ {pair} opened + TP/SL attached")
                     
                     ordered_keys.add(k)
                 except Exception as e:
