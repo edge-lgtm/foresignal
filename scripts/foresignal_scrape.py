@@ -1003,11 +1003,13 @@ def main() -> None:
             for s in new_open_signals:
                 k = s.key()
                 print(k)
+                print(1)
                 if k in ordered_keys:
                     continue
 
                 epic = PAIR_TO_EPIC.get(s.pair)
                 print(epic)
+                print(2)
                 if not epic:
                     print(f"⚠️ No IG EPIC mapping for {s.pair}; skipping.")
                     continue
@@ -1033,7 +1035,9 @@ def main() -> None:
                 tp = float(s.take_profit_at)
                 sl = float(s.stop_loss_at)
                 print(tp)
+                print(3)
                 print(sl)
+                print(4)
                 try:
                     resp = ig_place_limit(
                         ig_auth,
