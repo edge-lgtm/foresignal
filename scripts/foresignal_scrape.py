@@ -142,6 +142,16 @@ PAIR_TO_EPIC = {
     "USD/JPY": "CS.D.USDJPY.MINI.IP",
     # add more
 }
+IG_EPIC_MAP = {
+    "EUR/USD": "CS.D.EURUSD.MINI.IP",
+    "GBP/USD": "CS.D.GBPUSD.MINI.IP",
+    "USD/JPY": "CS.D.USDJPY.MINI.IP",
+    "AUD/USD": "CS.D.AUDUSD.MINI.IP",
+    "EUR/JPY": "CS.D.EURJPY.MINI.IP",
+    "USD/CHF": "CS.D.USDCHF.MINI.IP",
+    "USD/CAD": "CS.D.USDCAD.MINI.IP",
+    "GBP/CHF": "CS.D.GBPCHF.MINI.IP",
+}
 def ig_login() -> dict:
     api_key = require_env("IG_API_KEY")
     username = require_env("IG_USERNAME")
@@ -231,7 +241,7 @@ def ig_place_limit(
     size: float = 0.5,
 ) -> dict:
     headers = {
-        **IG_HEADERS_BASE,
+        headers = IG_HEADERS_BASE.copy(),
         "X-IG-API-KEY": auth["X-IG-API-KEY"],
         "CST": auth["CST"],
         "X-SECURITY-TOKEN": auth["X-SECURITY-TOKEN"],
