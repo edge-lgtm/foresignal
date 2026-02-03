@@ -998,15 +998,16 @@ def main() -> None:
         except Exception as e:
             print(f"IG login failed: {e}")
             ig_auth = None
-        print(ig_auth)
-        print(new_open_signals)
+       
         if ig_auth:
             for s in new_open_signals:
                 k = s.key()
+                print(k)
                 if k in ordered_keys:
                     continue
 
                 epic = PAIR_TO_EPIC.get(s.pair)
+                print(epic)
                 if not epic:
                     print(f"⚠️ No IG EPIC mapping for {s.pair}; skipping.")
                     continue
@@ -1031,7 +1032,8 @@ def main() -> None:
 
                 tp = float(s.take_profit_at)
                 sl = float(s.stop_loss_at)
-
+                print(tp)
+                print(sl)
                 try:
                     resp = ig_place_limit(
                         ig_auth,
