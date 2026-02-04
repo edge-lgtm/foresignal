@@ -373,6 +373,52 @@ def ig_confirm(auth: dict, deal_ref: str, tries: int = 6) -> dict:
             time.sleep(delay); delay *= 2
 
     raise RuntimeError(f"Confirm failed after retries: {last_err}")
+def ig_attach_sl_then_tp(
+    auth: Dict[str, str],
+    deal_id: str,
+    sl: float,
+    tp: float,
+    guaranteed_stop: bool = False,
+    trailing_stop: bool = False,
+    timeout: int = 20,
+) -> Dict[str, Any]:
+    """
+    Attach SL first, then TP, as two separate update requests.
+    Returns a combined result with both responses.
+    """
+    base = auth["base"].rstrip("/")
+    url = f"{base}/positions/otc/{deal_id}"
+    headers = _ig_headers(auth)
+
+    if sl is None or sl <= 0:
+        raise ValueError("sl must be > 0")
+    if tp is None or tp <= 0:
+        raise ValueError("tp must be > 0")
+
+    results: Dict[str, Any] = {"deal_id": deal_id}
+
+    # 1) STOP LOSS first
+    sl_payload = {
+        "stopLevel": float(sl),
+        "guaranteedStop": bool(guaranteed_stop),
+        "trailingStop": bool(trailing_stop),
+    }
+    r1 = requests.put(url, headers=headers, json=sl_payload, timeout=timeout)
+    r1.raise_for_status()
+    results["stop_loss_response"] = r1.json()
+
+    # 2) TAKE PROFIT second
+    tp_payload = {
+        "limitLevel": float(tp),
+        # include these again to avoid server resetting flags in some implementations
+        "guaranteedStop": bool(guaranteed_stop),
+        "trailingStop": bool(trailing_stop),
+    }
+    r2 = requests.put(url, headers=headers, json=tp_payload, timeout=timeout)
+    r2.raise_for_status()
+    results["take_profit_response"] = r2.json()
+
+    return results
 
 def ig_attach_tp_sl(auth: dict, deal_id: str, tp: float, sl: float) -> dict:
     url = f"{auth['base']}/positions/otc/{deal_id}"
@@ -1311,8 +1357,8 @@ def main() -> None:
                     deal_id = conf.get("dealId") or (conf.get("affectedDeals") or [{}])[0].get("dealId")
                     if not deal_id:
                         raise RuntimeError(f"No dealId in confirm: {conf}")
-                    
-                    edit_resp = ig_attach_tp_sl(ig_auth, deal_id, tp, sl)
+                    edit_resp = ig_attach_sl_then_tp(ig_auth, deal_id, sl , tp)
+                    #edit_resp = ig_attach_tp_sl(ig_auth, deal_id, tp, sl)
                     print("TP/SL attached:", edit_resp)
                     
                     
