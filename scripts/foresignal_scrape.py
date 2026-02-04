@@ -373,6 +373,16 @@ def ig_confirm(auth: dict, deal_ref: str, tries: int = 6) -> dict:
             time.sleep(delay); delay *= 2
 
     raise RuntimeError(f"Confirm failed after retries: {last_err}")
+
+def _ig_headers(auth: Dict[str, str]) -> Dict[str, str]:
+    return {
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+        "Version": "2",
+        "X-IG-API-KEY": auth["api_key"],
+        "CST": auth["cst"],
+        "X-SECURITY-TOKEN": auth["xst"],
+    }
 def ig_attach_sl_then_tp(
     auth: Dict[str, str],
     deal_id: str,
