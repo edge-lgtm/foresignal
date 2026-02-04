@@ -246,6 +246,19 @@ IG_HEADERS_BASE = {
 }
 def calc_distance(entry_price: float, target_price: float) -> float:
     return round(abs(target_price - entry_price), 5)
+PAIR_CCY = {
+    "NZD/USD": "USD",
+    "EUR/USD": "USD",
+    "GBP/USD": "USD",
+    "GBP/JPY": "JPY",
+    "AUD/USD": "USD",
+    "USD/JPY": "JPY",
+    "EUR/JPY": "JPY",
+    "USD/CHF": "CHF",
+    "GBP/CHF": "CHF",
+    "USD/CAD": "CAD",
+    "CAD/USD": "USD",  # optional, if you ever use it
+}
 def ig_place_limit(
     auth: dict,
     *,
@@ -255,8 +268,9 @@ def ig_place_limit(
     tp: float,
     sl: float,
     size: float = 0.5,
+    pair: str
 ) -> dict:
-    print(1)
+    currency_code = PAIR_CCY.get(pair, "USD")
     headers = IG_HEADERS_BASE.copy()
     headers = {
         "Content-Type": "application/json",
@@ -279,7 +293,7 @@ def ig_place_limit(
         "expiry": "-",
         "forceOpen": True,
         "guaranteedStop": False,
-        "currencyCode": "USD",
+        "currencyCode": currency_code,
     }
     url = f"{auth['base']}/positions/otc"
     print("IG ORDER URL:", url)
@@ -290,19 +304,7 @@ def ig_place_limit(
     print("IG ORDER RESPONSE:", r.status_code, r.text)
     print(4)
     return r.json()
-PAIR_CCY = {
-    "NZD/USD": "USD",
-    "EUR/USD": "USD",
-    "GBP/USD": "USD",
-    "GBP/JPY": "JPY",
-    "AUD/USD": "USD",
-    "USD/JPY": "JPY",
-    "EUR/JPY": "JPY",
-    "USD/CHF": "CHF",
-    "GBP/CHF": "CHF",
-    "USD/CAD": "CAD",
-    "CAD/USD": "USD",  # optional, if you ever use it
-}
+
 
 def ig_open_market(auth: Dict[str, str], epic: str, direction: str, size: float, pair: str) -> str:
     """
@@ -1140,6 +1142,7 @@ def ig_close_position(
     epic: str,
     direction: str,
     size: float,
+    currency_code: str
 ):
     close_direction = "SELL" if direction == "BUY" else "BUY"
 
@@ -1152,7 +1155,7 @@ def ig_close_position(
         "expiry": "-",
         "forceOpen": False,
         "guaranteedStop": False,   # REQUIRED
-        "currencyCode": "USD",     # REQUIRED
+        "currencyCode": currency_code,     # REQUIRED
     }
 
     headers = {
@@ -1218,7 +1221,7 @@ def ig_get_working_orders(auth: dict) -> list[dict]:
     r.raise_for_status()
     return r.json().get("workingOrders", [])
 
-def ig_delete_working_orders_for_epic(auth: dict, epic: str) -> None:
+def ig_delete_working_orders_for_epic(auth: dict, epic: str, pair: str) -> None:
     orders = ig_get_working_orders(auth)
 
     headers = {
@@ -1242,7 +1245,8 @@ def ig_delete_working_orders_for_epic(auth: dict, epic: str) -> None:
         rd = requests.delete(url, headers=headers, timeout=20)
         print(f"🗑️ Deleting working order {epic} dealId={deal_id} ->", rd.status_code, rd.text)
         rd.raise_for_status()
-def ig_close_all_positions_for_epic(auth: dict, epic: str):
+def ig_close_all_positions_for_epic(auth: dict, epic: str, pair: str):
+    currency_code = PAIR_CCY.get(pair, "USD")
     url = f"{auth['base']}/positions"
     headers = {
         "Accept": "application/json",
@@ -1269,6 +1273,7 @@ def ig_close_all_positions_for_epic(auth: dict, epic: str):
             epic=epic,                    # ✅ PASS EPIC
             direction=pos["direction"],
             size=pos["size"],
+            currency_code=currency_code
         )
 
 # ---------------- MAIN ----------------
@@ -1333,8 +1338,8 @@ def main() -> None:
                 if not epic:
                     print(f"⚠️ No IG EPIC mapping for {s.pair}; skipping.")
                     continue
-                ig_close_all_positions_for_epic(ig_auth, epic)
-                ig_delete_working_orders_for_epic(ig_auth, epic)
+                ig_close_all_positions_for_epic(ig_auth, epic, s.pair)
+                ig_delete_working_orders_for_epic(ig_auth, epic, s.pair)
 
                 
 
