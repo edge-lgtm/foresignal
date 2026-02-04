@@ -294,6 +294,7 @@ PAIR_CCY = {
     "NZD/USD": "USD",
     "EUR/USD": "USD",
     "GBP/USD": "USD",
+    "GBP/JPY": "JPY",
     "AUD/USD": "USD",
     "USD/JPY": "JPY",
     "EUR/JPY": "JPY",
