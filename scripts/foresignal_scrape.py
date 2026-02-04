@@ -331,7 +331,7 @@ def ig_open_market(auth: Dict[str, str], epic: str, direction: str, size: float,
         "expiry": "-",
         "direction": direction,          # BUY/SELL
         "orderType": "MARKET",
-        "size": float(size),
+        "size": 0.5,
         "forceOpen": True,
         "currencyCode": currency_code,   # <-- correct Python equivalent of ?? default
         "guaranteedStop": False,
@@ -1301,7 +1301,7 @@ def main() -> None:
                     
 
                     # 1) Open market position (NO TP/SL here)
-                    deal_ref = ig_open_market(ig_auth, epic, direction, 0, s.pair)
+                    deal_ref = ig_open_market(ig_auth, epic, direction, 0.5, s.pair)
                     conf = ig_confirm(ig_auth, deal_ref)
                     
                     if conf.get("dealStatus") != "ACCEPTED":
