@@ -269,6 +269,8 @@ def ig_place_limit(
     tp_distance = round(abs(tp - entry), 5)
     sl_distance = round(abs(sl - entry), 5)
     
+
+
     payload = {
         "epic": epic,
         "direction": direction,
@@ -288,9 +290,32 @@ def ig_place_limit(
     print("IG ORDER RESPONSE:", r.status_code, r.text)
     print(4)
     return r.json()
+PAIR_CCY = {
+    "NZD/USD": "USD",
+    "EUR/USD": "USD",
+    "GBP/USD": "USD",
+    "AUD/USD": "USD",
+    "USD/JPY": "JPY",
+    "EUR/JPY": "JPY",
+    "USD/CHF": "CHF",
+    "USD/CAD": "CAD",
+    "CAD/USD": "USD",  # optional, if you ever use it
+}
+def ig_open_market(auth: Dict[str, str], epic: str, direction: str, size: float, pair: str) -> str:
+    """
+    Opens an OTC market position via IG.
+    Returns dealReference.
+    """
+    direction = direction.upper().strip()
+    if direction not in ("BUY", "SELL"):
+        raise ValueError("direction must be 'BUY' or 'SELL'")
 
-def ig_open_market(auth: dict, epic: str, direction: str, size: float) -> str:
-    url = f"{auth['base']}/positions/otc"
+    if size <= 0:
+        raise ValueError("size must be > 0")
+
+    currency_code = PAIR_CCY.get(pair, "USD")  # default USD if unknown
+
+    url = f"{auth['base'].rstrip('/')}/positions/otc"
     headers = {
         "Accept": "application/json",
         "Content-Type": "application/json",
@@ -303,17 +328,22 @@ def ig_open_market(auth: dict, epic: str, direction: str, size: float) -> str:
     payload = {
         "epic": epic,
         "expiry": "-",
-        "direction": direction,     # BUY/SELL
+        "direction": direction,          # BUY/SELL
         "orderType": "MARKET",
-        "size": size,
+        "size": float(size),
         "forceOpen": True,
-        "currencyCode": "USD",
+        "currencyCode": currency_code,   # <-- correct Python equivalent of ?? default
         "guaranteedStop": False,
     }
 
     r = requests.post(url, headers=headers, json=payload, timeout=20)
     r.raise_for_status()
-    return r.json()["dealReference"]
+
+    data = r.json()
+    if "dealReference" not in data:
+        raise RuntimeError(f"Unexpected IG response: {data}")
+
+    return data["dealReference"]
 
 def ig_confirm(auth: dict, deal_ref: str, tries: int = 6) -> dict:
     url = f"{auth['base']}/confirms/{deal_ref}"
@@ -1233,6 +1263,12 @@ def main() -> None:
                     continue
 
                 epic = PAIR_TO_EPIC.get(s.pair)
+
+
+
+                
+
+                
                  
                 if not epic:
                     print(f"⚠️ No IG EPIC mapping for {s.pair}; skipping.")
@@ -1264,7 +1300,7 @@ def main() -> None:
                     
 
                     # 1) Open market position (NO TP/SL here)
-                    deal_ref = ig_open_market(ig_auth, epic, direction, 0.5)
+                    deal_ref = ig_open_market(ig_auth, epic, direction, 0, s.pair)
                     conf = ig_confirm(ig_auth, deal_ref)
                     
                     if conf.get("dealStatus") != "ACCEPTED":
