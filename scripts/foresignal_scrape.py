@@ -299,6 +299,7 @@ PAIR_CCY = {
     "USD/JPY": "JPY",
     "EUR/JPY": "JPY",
     "USD/CHF": "CHF",
+    "GBP/CHF": "CHF",
     "USD/CAD": "CAD",
     "CAD/USD": "USD",  # optional, if you ever use it
 }
