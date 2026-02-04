@@ -301,6 +301,7 @@ PAIR_CCY = {
     "USD/CAD": "CAD",
     "CAD/USD": "USD",  # optional, if you ever use it
 }
+
 def ig_open_market(auth: Dict[str, str], epic: str, direction: str, size: float, pair: str) -> str:
     """
     Opens an OTC market position via IG.
