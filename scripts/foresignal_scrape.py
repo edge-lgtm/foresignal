@@ -420,6 +420,7 @@ def ig_attach_sl_then_tp(
     # 2) TAKE PROFIT second
     tp_payload = {
         "limitLevel": float(tp),
+        "stopLevel": float(sl),
         # include these again to avoid server resetting flags in some implementations
         "guaranteedStop": bool(guaranteed_stop),
         "trailingStop": bool(trailing_stop),
