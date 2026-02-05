@@ -42,7 +42,25 @@ F_MAP_RE = re.compile(
     r"""function\s+f\s*\(\s*s\s*\)\s*\{.*?w\(\s*'([^']+)'\.charAt\(\s*s\.charCodeAt\(\s*i\s*\)\s*-\s*(\d+)\s*-\s*i\s*\)\s*\)\s*\).*?\}""",
     re.DOTALL
 )
+def status_badge(status: str | None, pips: int | None) -> str:
+    s = (status or "").strip().lower()
 
+    # ✅ closed states first
+    if s == "filled":
+        return "🔒"          # closed (filled)
+    if s == "cancelled":
+        return "🚫"          # cancelled
+    if s == "expired":
+        return "⏱️"          # expired
+
+    # otherwise, show win/loss/neutral
+    if pips is None:
+        return "🟡"
+    if pips > 0:
+        return "🟢"
+    if pips < 0:
+        return "🔴"
+    return "🟡"
 def post_to_blogger(subject: str, html_body: str) -> bool:
     to_addr = os.getenv("BLOGGER_POST_EMAIL")
     smtp_host = os.getenv("SMTP_HOST", "smtp.gmail.com")
@@ -1000,8 +1018,8 @@ def format_changed_signal(new: dict, diffs: list[tuple[str, object, object]]) ->
     pair = new.get("pair", "?")
     status = new.get("status", "")
     pips = new.get("pips", None)
-    em = pl_emoji(pips if isinstance(pips, int) else None)
 
+    em = status_badge(status, pips if isinstance(pips, int) else None)
     lines = [f"<b>{pair}</b> {em} <i>{status}</i>"]
     # only show changed fields
     for f, oldv, newv in diffs:
@@ -1018,7 +1036,10 @@ def format_changed_signal(new: dict, diffs: list[tuple[str, object, object]]) ->
 def format_new_signal(new: dict) -> str:
     pair = new.get("pair", "?")
     status = new.get("status", "")
-    lines = [f"<b>{pair}</b> 🆕 <i>{status}</i>"]
+    p = new.get("pips")
+    em = status_badge(status, p if isinstance(p, int) else None)
+
+    lines = [f"<b>{pair}</b> 🆕 {em} <i>{status}</i>"]
     lines.append(f"From: <code>{fmt_time(new.get('from_ts'))}</code>")
     lines.append(f"Till: <code>{fmt_time(new.get('till_ts'))}</code>")
 
@@ -1049,7 +1070,26 @@ def format_removed(old: dict) -> str:
 def format_expired(s: dict) -> str:
     pair = s.get("pair", "?")
     return f"<b>{pair}</b> ⏱️ <i>Expired (Till reached)</i>\nTill: <code>{fmt_time(s.get('till_ts'))}</code>\n"
+def get_newly_filled(prev: list[dict] | None, cur: list[Signal]) -> list[Signal]:
+    if not prev:
+        return []
 
+    prev_map = index_by_key(prev)
+    newly = []
+
+    for s in cur:
+        old = prev_map.get(s.key())
+        if not old:
+            continue
+
+        old_status = (old.get("status") or "").lower()
+        new_status = (s.status or "").lower()
+
+        # ✅ became FILLED now
+        if old_status != "filled" and new_status == "filled":
+            newly.append(s)
+
+    return newly
 
 def build_full_snapshot(signals: list[Signal], pulled_at: str, prefix: str = "") -> str:
     lines = [
@@ -1061,7 +1101,7 @@ def build_full_snapshot(signals: list[Signal], pulled_at: str, prefix: str = "")
     lines.append("")
 
     for s in signals:
-        em = pl_emoji(s.pips)
+        em = status_badge(s.status, s.pips)
         lines.append(f"<b>{s.pair}</b> {em} <i>{s.status}</i>")
         lines.append(f"From: <code>{fmt_time(s.from_ts)}</code>")
         lines.append(f"Till: <code>{fmt_time(s.till_ts)}</code>")
@@ -1283,6 +1323,27 @@ def main() -> None:
     signals = parse_signals(html)
 
     prev = load_previous()  # previous snapshot list[dict] or None
+    newly_filled = get_newly_filled(prev, signals)
+    if newly_filled:
+    try:
+        ig_auth = ig_login()
+    except Exception as e:
+        print(f"IG login failed (close step): {e}")
+        ig_auth = None
+
+    if ig_auth:
+        for s in newly_filled:
+            epic = PAIR_TO_EPIC.get(s.pair)
+            if not epic:
+                continue
+
+            # ✅ cancel any pending orders for that epic
+            ig_delete_working_orders_for_epic(ig_auth, epic, s.pair)
+
+            # ✅ close any open positions for that epic
+            ig_close_all_positions_for_epic(ig_auth, epic, s.pair)
+
+        print(f"✅ Closed IG positions for {len(newly_filled)} FILLED signals")
     new_open_signals = get_new_open_signals(prev, signals)
 
     # Always save snapshot at end so "new" becomes "known" next run
