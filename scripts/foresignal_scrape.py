@@ -1325,26 +1325,26 @@ def main() -> None:
     prev = load_previous()  # previous snapshot list[dict] or None
     newly_filled = get_newly_filled(prev, signals)
     if newly_filled:
-    try:
-        ig_auth = ig_login()
-    except Exception as e:
-        print(f"IG login failed (close step): {e}")
-        ig_auth = None
+        try:
+            ig_auth = ig_login()
+        except Exception as e:
+            print(f"IG login failed (close step): {e}")
+            ig_auth = None
 
-    if ig_auth:
-        for s in newly_filled:
-            epic = PAIR_TO_EPIC.get(s.pair)
-            if not epic:
-                continue
+        if ig_auth:
+            for s in newly_filled:
+                epic = PAIR_TO_EPIC.get(s.pair)
+                if not epic:
+                    continue
 
-            # ✅ cancel any pending orders for that epic
-            ig_delete_working_orders_for_epic(ig_auth, epic, s.pair)
+                # ✅ cancel any pending orders for that epic
+                ig_delete_working_orders_for_epic(ig_auth, epic, s.pair)
 
-            # ✅ close any open positions for that epic
-            ig_close_all_positions_for_epic(ig_auth, epic, s.pair)
+                # ✅ close any open positions for that epic
+                ig_close_all_positions_for_epic(ig_auth, epic, s.pair)
 
-        print(f"✅ Closed IG positions for {len(newly_filled)} FILLED signals")
-    new_open_signals = get_new_open_signals(prev, signals)
+            print(f"✅ Closed IG positions for {len(newly_filled)} FILLED signals")
+        new_open_signals = get_new_open_signals(prev, signals)
 
     # Always save snapshot at end so "new" becomes "known" next run
     # (but only trade if send succeeded)
