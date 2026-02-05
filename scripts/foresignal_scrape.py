@@ -15,7 +15,14 @@ import requests
 from bs4 import BeautifulSoup
 import smtplib
 
+from decimal import Decimal, ROUND_HALF_UP
 
+SCALE_EURUSD = Decimal("10000")
+
+def mini_to_price(value):
+    return (Decimal(str(value)) / SCALE_EURUSD).quantize(
+        Decimal("0.00001"), rounding=ROUND_HALF_UP
+    )
 # =========================
 # ENV + CONFIG
 # =========================
@@ -828,9 +835,14 @@ def main() -> None:
                 if not s.take_profit_at or not s.stop_loss_at:
                     print(f"⚠️ Missing TP/SL for {s.pair}; skipping.")
                     continue
-
-                tp = float(s.take_profit_at)
-                sl = float(s.stop_loss_at)
+                if(s.pair == "EUR/USD"){
+                    tp = float(mini_to_price(s.take_profit_at))
+                    sl = float(mini_to_price(s.stop_loss_at))
+                }else{
+                    tp = float(s.take_profit_at)
+                    sl = float(s.stop_loss_at)
+                }
+                
 
                 try:
                     deal_ref = ig_open_market(ig_auth, epic, direction, 0.5, s.pair)
