@@ -754,8 +754,17 @@ def main() -> None:
                 ig_delete_working_orders_for_epic(ig_auth, epic)
                 ig_close_all_positions_for_epic(ig_auth, epic, s.pair)
 
-            print(f"✅ Closed IG positions for {len(newly_filled)} FILLED signals")
-
+            if newly_filled:
+                print(f"✅ Closed IG positions for {len(newly_filled)} FILLED signals:")
+                for i, s in enumerate(newly_filled, start=1):
+                    epic = PAIR_TO_EPIC.get(s.pair, "-")
+                    print(
+                        f"  {i}. {s.pair} | epic={epic} | "
+                        f"From={fmt_time(s.from_ts)} | Till={fmt_time(s.till_ts)} | "
+                        f"status={s.status} | pips={s.pips}"
+                    )
+            else:
+                print("✅ Closed IG positions for 0 FILLED signals")
     # ✅ ALWAYS compute new_open_signals (fixes UnboundLocalError)
     new_open_signals = get_new_open_signals(prev, signals)
 
