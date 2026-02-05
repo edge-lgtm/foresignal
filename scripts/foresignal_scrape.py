@@ -3,94 +3,117 @@ from __future__ import annotations
 import json
 import os
 import re
-from dataclasses import dataclass
-from datetime import datetime, timezone,timedelta
-from pathlib import Path
-from zoneinfo import ZoneInfo
 import time
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from email.message import EmailMessage
+from pathlib import Path
+from typing import Any, Dict, Optional
+from zoneinfo import ZoneInfo
+
 import requests
 from bs4 import BeautifulSoup
-from email.message import EmailMessage
 import smtplib
 
 
-IG_API_KEY = os.getenv("IG_API_KEY")
-IG_USERNAME = os.getenv("IG_USERNAME")
-IG_PASSWORD = os.getenv("IG_PASSWORD")
-IG_ACCOUNT_ID = os.getenv("IG_ACCOUNT_ID")
-IG_DEMO = (os.getenv("IG_DEMO", "true").lower() in ("1", "true", "yes", "y"))
+# =========================
+# ENV + CONFIG
+# =========================
 def require_env(name: str) -> str:
     v = os.getenv(name)
     if not v:
         raise RuntimeError(f"Missing env var: {name}")
     return v
 
-# ---------------- CONFIG ----------------
+
 URL = "https://foresignal.com/en/"
 TZ = ZoneInfo("Asia/Manila")
 
 DATA_DIR = Path("data")
 DATA_DIR.mkdir(exist_ok=True)
 
-LAST_STATE_FILE = DATA_DIR / "latest_signals.json"          # last snapshot (for diff)
-TRADES_LOG_FILE = DATA_DIR / "trades_history.jsonl"         # append-only trade outcomes
+LAST_STATE_FILE = DATA_DIR / "latest_signals.json"
+TRADES_LOG_FILE = DATA_DIR / "trades_history.jsonl"
+ORDERED_FILE = DATA_DIR / "ordered_keys.json"
 
-# Foresignal obfuscation map (from site JS)
+IG_DEMO = (os.getenv("IG_DEMO", "true").lower() in ("1", "true", "yes", "y"))
+
+PAIR_TO_EPIC = {
+    "NZD/USD": "CS.D.NZDUSD.MINI.IP",
+    "EUR/USD": "CS.D.EURUSD.MINI.IP",
+    "GBP/USD": "CS.D.GBPUSD.MINI.IP",
+    "USD/JPY": "CS.D.USDJPY.MINI.IP",   # make consistent (MINI.IP)
+    "AUD/USD": "CS.D.AUDUSD.MINI.IP",
+    "EUR/JPY": "CS.D.EURJPY.MINI.IP",
+    "USD/CHF": "CS.D.USDCHF.MINI.IP",
+    "USD/CAD": "CS.D.USDCAD.MINI.IP",
+    "GBP/CHF": "CS.D.GBPCHF.MINI.IP",
+}
+
+PAIR_CCY = {
+    "NZD/USD": "USD",
+    "EUR/USD": "USD",
+    "GBP/USD": "USD",
+    "AUD/USD": "USD",
+    "USD/JPY": "JPY",
+    "EUR/JPY": "JPY",
+    "USD/CHF": "CHF",
+    "GBP/CHF": "CHF",
+    "USD/CAD": "CAD",
+}
+
+
+# =========================
+# FORESIGNAL DECODER
+# =========================
 MAP: str = ""
-MAP_BASE: int = 68  # default fallback
+MAP_BASE: int = 68  # fallback base
 F_MAP_RE = re.compile(
     r"""function\s+f\s*\(\s*s\s*\)\s*\{.*?w\(\s*'([^']+)'\.charAt\(\s*s\.charCodeAt\(\s*i\s*\)\s*-\s*(\d+)\s*-\s*i\s*\)\s*\)\s*\).*?\}""",
-    re.DOTALL
+    re.DOTALL,
 )
-def status_badge(status: str | None, pips: int | None) -> str:
-    s = (status or "").strip().lower()
 
-    # ✅ closed states first
-    if s == "filled":
-        return "🔒"          # closed (filled)
-    if s == "cancelled":
-        return "🚫"          # cancelled
-    if s == "expired":
-        return "⏱️"          # expired
+NUM_RE = re.compile(r"[-+]?\d+(?:\.\d+)?")
+F_ENC_RE = re.compile(r"f\(\s*'([^']+)'\s*\)")
+HHMM_RE = re.compile(r"hhmm\((\d+)\)")
 
-    # otherwise, show win/loss/neutral
-    if pips is None:
-        return "🟡"
-    if pips > 0:
-        return "🟢"
-    if pips < 0:
-        return "🔴"
-    return "🟡"
-def post_to_blogger(subject: str, html_body: str) -> bool:
-    to_addr = os.getenv("BLOGGER_POST_EMAIL")
-    smtp_host = os.getenv("SMTP_HOST", "smtp.gmail.com")
-    smtp_port = int(os.getenv("SMTP_PORT", "587"))
-    smtp_user = os.getenv("SMTP_USER")
-    smtp_pass = os.getenv("SMTP_PASS")
 
-    if not to_addr or not smtp_user or not smtp_pass:
-        print("Blogger SMTP not confured.")
-        return False
+def init_decoder_from_html(html: str) -> None:
+    global MAP, MAP_BASE
+    m = F_MAP_RE.search(html)
+    if not m:
+        print("⚠️ Could not extract decoder MAP/BASE from HTML. Using fallback.")
+        if not MAP:
+            MAP = " 7032,-5.4981+6"
+        return
+    MAP = m.group(1)
+    MAP_BASE = int(m.group(2))
 
-    try:
-        msg = EmailMessage()
-        msg["From"] = smtp_user
-        msg["To"] = to_addr
-        msg["Subject"] = subject
-        msg.set_content("This post requires an HTML-capable email client.")
-        msg.add_alternative(html_body, subtype="html")
 
-        with smtplib.SMTP(smtp_host, smtp_port, timeout=30) as s:
-            s.ehlo()
-            s.starttls()
-            s.login(smtp_user, smtp_pass)
-            s.send_message(msg)
+def decode_f(encoded: str) -> str:
+    out = []
+    for i, ch in enumerate(encoded):
+        idx = ord(ch) - MAP_BASE - i
+        if 0 <= idx < len(MAP):
+            out.append(MAP[idx])
+    return "".join(out).strip()
 
-        return True
-    except Exception as e:
-        print(f"Blogger post failed: {e}")
-        return False
 
+def fetch_html(url: str) -> str:
+    headers = {
+        "User-Agent": (
+            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+            "(KHTML, like Gecko) Chrome/120.0 Safari/537.36"
+        )
+    }
+    r = requests.get(url, headers=headers, timeout=30)
+    r.raise_for_status()
+    return r.text
+
+
+# =========================
+# TELEGRAM + BLOGGER
+# =========================
 def send_telegram_html(text: str) -> bool:
     token = os.getenv("TELEGRAM_BOT_TOKEN")
     chat_id = os.getenv("TELEGRAM_CHAT_ID")
@@ -99,6 +122,7 @@ def send_telegram_html(text: str) -> bool:
         return False
 
     try:
+        # Telegram limit ~4096 chars
         chunks = []
         while len(text) > 3900:
             cut = text.rfind("\n\n", 0, 3900)
@@ -122,379 +146,12 @@ def send_telegram_html(text: str) -> bool:
                 timeout=30,
             )
             r.raise_for_status()
-
         return True
-
     except Exception as e:
         print(f"Telegram send failed: {e}")
         return False
 
 
-
-ORDERED_FILE = DATA_DIR / "ordered_keys.json"
-
-def load_ordered_keys() -> set[str]:
-    if not ORDERED_FILE.exists():
-        return set()
-    try:
-        obj = json.loads(ORDERED_FILE.read_text(encoding="utf-8"))
-        if isinstance(obj, list):
-            return set(str(x) for x in obj)
-    except Exception:
-        pass
-    return set()
-
-def save_ordered_keys(keys: set[str]) -> None:
-    ORDERED_FILE.write_text(json.dumps(sorted(keys), indent=2), encoding="utf-8")
-
-IG_BASE = "https://demo-api.ig.com/gateway/deal/session"
-headers = {
-    "Content-Type": "application/json; charset=UTF-8",
-    "Accept": "application/json; charset=UTF-8",
-    "X-IG-API-KEY": IG_API_KEY,
-    "Version": "2"
-}
-PAIR_TO_EPIC = {
-    "NZD/USD": "CS.D.NZDUSD.MINI.IP",
-    "EUR/USD": "CS.D.EURUSD.MINI.IP",
-    "GBP/USD": "CS.D.GBPUSD.MINI.IP",
-    "USD/JPY": "CS.D.USDJPY.CFD.IP",
-    "AUD/USD": "CS.D.AUDUSD.MINI.IP",
-    "EUR/JPY": "CS.D.EURJPY.MINI.IP",
-    "USD/CHF": "CS.D.USDCHF.MINI.IP",
-    "USD/CAD": "CS.D.USDCAD.MINI.IP",
-    "GBP/CHF": "CS.D.GBPCHF.MINI.IP",
-}
-IG_EPIC_MAP = {
-    "NZD/USD": "CS.D.NZDUSD.MINI.IP",
-    "EUR/USD": "CS.D.EURUSD.MINI.IP",
-    "GBP/USD": "CS.D.GBPUSD.MINI.IP",
-    "USD/JPY": "CS.D.USDJPY.MINI.IP",
-    "AUD/USD": "CS.D.AUDUSD.MINI.IP",
-    "EUR/JPY": "CS.D.EURJPY.MINI.IP",
-    "USD/CHF": "CS.D.USDCHF.MINI.IP",
-    "USD/CAD": "CS.D.USDCAD.MINI.IP",
-    "GBP/CHF": "CS.D.GBPCHF.MINI.IP",
-}
-def ig_login() -> dict:
-    api_key = require_env("IG_API_KEY")
-    username = require_env("IG_USERNAME")
-    password = require_env("IG_PASSWORD")
-
-    base = "https://demo-api.ig.com" if IG_DEMO else "https://api.ig.com"
-    url = f"{base}/gateway/deal/session"
-    
-    
-
-    headers = {
-        "Content-Type": "application/json; charset=UTF-8",
-        "Accept": "application/json; charset=UTF-8",
-        "X-IG-API-KEY": api_key,
-        "Version": "2",
-    }
-    payload = {
-        "identifier": "edwardlancelorilla",
-        "password": "eDwArD!@#1"
-    }
-
-    r = requests.post(url, headers=headers, json=payload, timeout=30)
-    body = r.json()
-    print("=== IG LOGIN RESPONSE ===")
-    print("URL:", r.url)
-    print("Status code:", r.status_code)
-    print("Reason:", r.reason)
-    
-    print("\n--- HEADERS ---")
-    for k, v in r.headers.items():
-        print(f"{k}: {v}")
-    
-    print("\n--- BODY (raw text) ---")
-    print(r.text)
-    
-    print("\n--- BODY (json parsed, if possible) ---")
-    try:
-        print(json.dumps(r.json(), indent=2))
-    except Exception as e:
-        print("Not JSON:", e)
-    
-    print("=== END RESPONSE ===")
-    if not r.ok:
-        raise RuntimeError(f"IG login failed {r.status_code}: {r.text}")
-
-    return {
-        "api_key": api_key,                         # ✅ ADD THIS
-        "cst": r.headers.get("CST"),
-        "xst": r.headers.get("X-SECURITY-TOKEN"),
-        "account_id": body.get("accountId"),
-        "base": f"{base}/gateway/deal", 
-    }
-def ig_login_demo() -> dict:
-    url = "https://demo-api.ig.com/gateway/deal/session"
-
-    headers = {
-        "Content-Type": "application/json; charset=UTF-8",
-        "Accept": "application/json; charset=UTF-8",
-        "X-IG-API-KEY": os.getenv("IG_API_KEY"),
-        "Version": "2"
-    }
-
-    payload = {
-        "identifier": os.getenv("IG_USERNAME"),
-        "password": os.getenv("IG_PASSWORD")
-    }
-
-    r = requests.post(url, headers=headers, json=payload, timeout=30)
-    print("IG RESPONSE:", r.status_code, r.text)
-    if not r.ok:
-        raise RuntimeError(
-            f"IG login failed {r.status_code}: {r.text}"
-        )
-
-    return {
-        "cst": r.headers.get("CST"),
-        "xst": r.headers.get("X-SECURITY-TOKEN"),
-        "account_id": r.json().get("currentAccountId")
-    }
-IG_HEADERS_BASE = {
-    "Content-Type": "application/json",
-    "Accept": "application/json",
-    "Version": "2",
-    "X-IG-API-KEY": IG_API_KEY,
-    "clientPlatform": "WEB",
-}
-def calc_distance(entry_price: float, target_price: float) -> float:
-    return round(abs(target_price - entry_price), 5)
-PAIR_CCY = {
-    "NZD/USD": "USD",
-    "EUR/USD": "USD",
-    "GBP/USD": "USD",
-    "GBP/JPY": "JPY",
-    "AUD/USD": "USD",
-    "USD/JPY": "JPY",
-    "EUR/JPY": "JPY",
-    "USD/CHF": "CHF",
-    "GBP/CHF": "CHF",
-    "USD/CAD": "CAD",
-    "CAD/USD": "USD",  # optional, if you ever use it
-}
-def ig_place_limit(
-    auth: dict,
-    *,
-    epic: str,
-    direction: str,
-    entry: float,
-    tp: float,
-    sl: float,
-    size: float = 0.5,
-    pair: str
-) -> dict:
-    currency_code = PAIR_CCY.get(pair, "USD")
-    headers = IG_HEADERS_BASE.copy()
-    headers = {
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-        "Version": "2",
-        "X-IG-API-KEY": auth["api_key"],   # ✅ NOW PRESENT
-        "CST": auth["cst"],
-        "X-SECURITY-TOKEN": auth["xst"],
-    }
-    tp_distance = round(abs(tp - entry), 5)
-    sl_distance = round(abs(sl - entry), 5)
-    
-
-
-    payload = {
-        "epic": epic,
-        "direction": direction,
-        "orderType": "MARKET",
-        "size": size,
-        "expiry": "-",
-        "forceOpen": True,
-        "guaranteedStop": False,
-        "currencyCode": currency_code,
-    }
-    url = f"{auth['base']}/positions/otc"
-    print("IG ORDER URL:", url)
-    print("IG ORDER HEADERS:", headers)
-    print("IG ORDER PAYLOAD:", payload)
-
-    r = requests.post(url, headers=headers, json=payload, timeout=20)
-    print("IG ORDER RESPONSE:", r.status_code, r.text)
-    print(4)
-    return r.json()
-
-
-def ig_open_market(auth: Dict[str, str], epic: str, direction: str, size: float, pair: str) -> str:
-    """
-    Opens an OTC market position via IG.
-    Returns dealReference.
-    """
-    direction = direction.upper().strip()
-    if direction not in ("BUY", "SELL"):
-        raise ValueError("direction must be 'BUY' or 'SELL'")
-
-    if size <= 0:
-        raise ValueError("size must be > 0")
-
-    currency_code = PAIR_CCY.get(pair, "USD")  # default USD if unknown
-
-    url = f"{auth['base'].rstrip('/')}/positions/otc"
-    headers = {
-        "Accept": "application/json",
-        "Content-Type": "application/json",
-        "Version": "2",
-        "X-IG-API-KEY": auth["api_key"],
-        "CST": auth["cst"],
-        "X-SECURITY-TOKEN": auth["xst"],
-    }
-
-    payload = {
-        "epic": epic,
-        "expiry": "-",
-        "direction": direction,          # BUY/SELL
-        "orderType": "MARKET",
-        "size": 0.5,
-        "forceOpen": True,
-        "currencyCode": currency_code,   # <-- correct Python equivalent of ?? default
-        "guaranteedStop": False,
-    }
-
-    r = requests.post(url, headers=headers, json=payload, timeout=20)
-    r.raise_for_status()
-
-    data = r.json()
-    if "dealReference" not in data:
-        raise RuntimeError(f"Unexpected IG response: {data}")
-
-    return data["dealReference"]
-
-def ig_confirm(auth: dict, deal_ref: str, tries: int = 6) -> dict:
-    url = f"{auth['base']}/confirms/{deal_ref}"
-    headers = {
-        "Accept": "application/json",
-        "Version": "1",
-        "X-IG-API-KEY": auth["api_key"],
-        "CST": auth["cst"],
-        "X-SECURITY-TOKEN": auth["xst"],
-    }
-
-    delay = 0.4
-    last_err = None
-    for _ in range(tries):
-        try:
-            r = requests.get(url, headers=headers, timeout=15)
-            if r.status_code >= 500:
-                last_err = f"{r.status_code} {r.text}"
-                time.sleep(delay); delay *= 2
-                continue
-            r.raise_for_status()
-            return r.json()
-        except Exception as e:
-            last_err = str(e)
-            time.sleep(delay); delay *= 2
-
-    raise RuntimeError(f"Confirm failed after retries: {last_err}")
-
-def _ig_headers(auth: Dict[str, str]) -> Dict[str, str]:
-    return {
-        "Accept": "application/json",
-        "Content-Type": "application/json",
-        "Version": "2",
-        "X-IG-API-KEY": auth["api_key"],
-        "CST": auth["cst"],
-        "X-SECURITY-TOKEN": auth["xst"],
-    }
-def ig_attach_sl_then_tp(
-    auth: Dict[str, str],
-    deal_id: str,
-    sl: float,
-    tp: float,
-    guaranteed_stop: bool = False,
-    trailing_stop: bool = False,
-    timeout: int = 20,
-) -> Dict[str, Any]:
-    """
-    Attach SL first, then TP, as two separate update requests.
-    Returns a combined result with both responses.
-    """
-    base = auth["base"].rstrip("/")
-    url = f"{base}/positions/otc/{deal_id}"
-    headers = _ig_headers(auth)
-
-    if sl is None or sl <= 0:
-        raise ValueError("sl must be > 0")
-    if tp is None or tp <= 0:
-        raise ValueError("tp must be > 0")
-
-    results: Dict[str, Any] = {"deal_id": deal_id}
-
-    # 1) STOP LOSS first
-    sl_payload = {
-        "stopLevel": float(sl),
-        "guaranteedStop": bool(guaranteed_stop),
-        "trailingStop": bool(trailing_stop),
-    }
-    r1 = requests.put(url, headers=headers, json=sl_payload, timeout=timeout)
-    r1.raise_for_status()
-    results["stop_loss_response"] = r1.json()
-
-    # 2) TAKE PROFIT second
-    tp_payload = {
-        "limitLevel": float(tp),
-        "stopLevel": float(sl),
-        # include these again to avoid server resetting flags in some implementations
-        "guaranteedStop": bool(guaranteed_stop),
-        "trailingStop": bool(trailing_stop),
-    }
-    r2 = requests.put(url, headers=headers, json=tp_payload, timeout=timeout)
-    r2.raise_for_status()
-    results["take_profit_response"] = r2.json()
-
-    return results
-
-def ig_attach_tp_sl(auth: dict, deal_id: str, tp: float, sl: float) -> dict:
-    url = f"{auth['base']}/positions/otc/{deal_id}"
-    headers = {
-        "Accept": "application/json",
-        "Content-Type": "application/json",
-        "Version": "2",
-        "X-IG-API-KEY": auth["api_key"],
-        "CST": auth["cst"],
-        "X-SECURITY-TOKEN": auth["xst"],
-    }
-
-    payload = {
-        "limitLevel": tp,
-        "stopLevel": sl,
-        "guaranteedStop": False,
-        "trailingStop": False,
-    }
-
-    r = requests.put(url, headers=headers, json=payload, timeout=20)
-    r.raise_for_status()
-    return r.json()
-
-
-def init_decoder_from_html(html: str) -> None:
-    """
-    Pulls the live obfuscation MAP and base from the site JS:
-      w('<MAP>'.charAt(s.charCodeAt(i)-<BASE>-i))
-    """
-    global MAP, MAP_BASE
-
-    m = F_MAP_RE.search(html)
-    if not m:
-        # Fallback: keep previous values; decoding may still work via plaintext tail "1.1861"
-        print("⚠️ Could not extract decoder MAP/BASE from HTML. Using fallback.")
-        if not MAP:
-            MAP = " 7032,-5.4981+6"  # last known example fallback
-        return
-
-    MAP = m.group(1)
-    MAP_BASE = int(m.group(2))
-NUM_RE = re.compile(r"[-+]?\d+(?:\.\d+)?")
-F_ENC_RE = re.compile(r"f\(\s*'([^']+)'\s*\)")
-HHMM_RE = re.compile(r"hhmm\((\d+)\)")  # unix seconds inside hhmm(....)
 def post_to_blogger(subject: str, html_body: str) -> bool:
     to_addr = os.getenv("BLOGGER_POST_EMAIL")
     smtp_host = os.getenv("SMTP_HOST", "smtp.gmail.com")
@@ -511,8 +168,7 @@ def post_to_blogger(subject: str, html_body: str) -> bool:
         msg["From"] = smtp_user
         msg["To"] = to_addr
         msg["Subject"] = subject
-
-        msg.set_content("HTML required")
+        msg.set_content("This post requires an HTML-capable email client.")
         msg.add_alternative(html_body, subtype="html")
 
         with smtplib.SMTP(smtp_host, smtp_port, timeout=30) as s:
@@ -522,45 +178,46 @@ def post_to_blogger(subject: str, html_body: str) -> bool:
             s.send_message(msg)
 
         return True
-
     except Exception as e:
         print(f"Blogger post failed: {e}")
         return False
-# ---------------- DATA MODEL ----------------
-def is_open_and_unfilled(signal: Signal, now_ts: int) -> bool:
-    if not signal.from_ts or not signal.till_ts:
-        return False
 
-    if not (signal.from_ts <= now_ts <= signal.till_ts):
-        return False
 
-    status = (signal.status or "").lower()
-    if status in ("filled", "cancelled", "expired"):
-        return False
+# =========================
+# STATE
+# =========================
+def load_previous() -> Optional[list[dict]]:
+    if not LAST_STATE_FILE.exists():
+        return None
+    return json.loads(LAST_STATE_FILE.read_text(encoding="utf-8"))
 
-    if signal.bought_at or signal.sold_at:
-        return False
 
-    return True
-def get_new_open_signals(
-    prev: list[dict] | None,
-    cur: list[Signal]
-) -> list[Signal]:
-    now_ts = now_unix()
+def save_current(signals: list["Signal"]) -> None:
+    LAST_STATE_FILE.write_text(
+        json.dumps([s.to_dict() for s in signals], indent=2),
+        encoding="utf-8",
+    )
 
-    prev_keys = set()
-    if prev:
-        prev_keys = {p["key"] for p in prev if "key" in p}
 
-    new_open = []
-    for s in cur:
-        if s.key() in prev_keys:
-            continue
+def load_ordered_keys() -> set[str]:
+    if not ORDERED_FILE.exists():
+        return set()
+    try:
+        obj = json.loads(ORDERED_FILE.read_text(encoding="utf-8"))
+        if isinstance(obj, list):
+            return set(str(x) for x in obj)
+    except Exception:
+        pass
+    return set()
 
-        if is_open_and_unfilled(s, now_ts):
-            new_open.append(s)
 
-    return new_open
+def save_ordered_keys(keys: set[str]) -> None:
+    ORDERED_FILE.write_text(json.dumps(sorted(keys), indent=2), encoding="utf-8")
+
+
+# =========================
+# MODEL
+# =========================
 @dataclass
 class Signal:
     pair: str
@@ -575,10 +232,9 @@ class Signal:
     take_profit_at: str
     stop_loss_at: str
 
-    pips: int | None  # profit/loss pips if present
+    pips: int | None
 
     def key(self) -> str:
-        # unique-ish key for tracking across runs
         return f"{self.pair}|{self.from_ts or 0}|{self.till_ts or 0}"
 
     def to_dict(self) -> dict:
@@ -598,37 +254,16 @@ class Signal:
         }
 
 
-# ---------------- HELPERS ----------------
-def fetch_html(url: str) -> str:
-    headers = {
-        "User-Agent": (
-            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
-            "(KHTML, like Gecko) Chrome/120.0 Safari/537.36"
-        )
-    }
-    r = requests.get(url, headers=headers, timeout=30)
-    r.raise_for_status()
-    return r.text
-
-
-def decode_f(encoded: str) -> str:
-    out = []
-    for i, ch in enumerate(encoded):
-        idx = ord(ch) - MAP_BASE - i
-        if 0 <= idx < len(MAP):
-            out.append(MAP[idx])
-    return "".join(out).strip()
-
-
+# =========================
+# FORESIGNAL PARSER
+# =========================
 def extract_value(value_el) -> str:
-    # Prefer decoding <script>f('...')</script>
     script = value_el.find("script")
     if script:
         m = F_ENC_RE.search(script.get_text(strip=True))
         if m:
             return decode_f(m.group(1))
 
-    # Fallback: plain numeric text
     txt = value_el.get_text(" ", strip=True)
     txt = re.sub(r"\s+", " ", txt).strip()
     m = NUM_RE.search(txt)
@@ -636,25 +271,17 @@ def extract_value(value_el) -> str:
 
 
 def parse_time_range(card) -> tuple[int | None, int | None]:
-    """
-    Extract From/Till unix seconds from:
-      <script>w(hhmm(1769774700));</script>
-    This is reliable in raw HTML and avoids JS execution.
-    """
-    # Find the two signal rows that contain "From" and "Till"
     from_ts = None
     till_ts = None
 
-    rows = card.select(".signal-row")
-    for r in rows:
+    for r in card.select(".signal-row"):
         title_el = r.select_one(".signal-title")
         if not title_el:
             continue
         title = title_el.get_text(" ", strip=True)
 
         if title in ("From", "Till"):
-            scripts = r.find_all("script")
-            for s in scripts:
+            for s in r.find_all("script"):
                 m = HHMM_RE.search(s.get_text(" ", strip=True))
                 if m:
                     ts = int(m.group(1))
@@ -662,16 +289,10 @@ def parse_time_range(card) -> tuple[int | None, int | None]:
                         from_ts = ts
                     else:
                         till_ts = ts
-
     return from_ts, till_ts
 
 
 def parse_pips(card) -> int | None:
-    """
-    Looks for:
-      Profit, pips  +38
-      Loss, pips    -30
-    """
     for r in card.select(".signal-row"):
         title_el = r.select_one(".signal-title")
         value_el = r.select_one(".signal-value")
@@ -687,7 +308,7 @@ def parse_pips(card) -> int | None:
 
 def parse_signals(html: str) -> list[Signal]:
     soup = BeautifulSoup(html, "html.parser")
-    signals: list[Signal] = []
+    out: list[Signal] = []
 
     for card in soup.select(".card.signal-card"):
         pair_el = card.select_one(".card-header a[href*='/signals/']")
@@ -701,7 +322,6 @@ def parse_signals(html: str) -> list[Signal]:
         from_ts, till_ts = parse_time_range(card)
         pips = parse_pips(card)
 
-        # defaults
         fields = {
             "sell_at": "",
             "buy_at": "",
@@ -733,7 +353,7 @@ def parse_signals(html: str) -> list[Signal]:
             elif title == "Stop loss at":
                 fields["stop_loss_at"] = value
 
-        signals.append(
+        out.append(
             Signal(
                 pair=pair,
                 status=status,
@@ -749,23 +369,12 @@ def parse_signals(html: str) -> list[Signal]:
             )
         )
 
-    # stable ordering
-    return sorted(signals, key=lambda s: (s.pair, s.from_ts or 0, s.till_ts or 0))
+    return sorted(out, key=lambda s: (s.pair, s.from_ts or 0, s.till_ts or 0))
 
 
-def load_previous() -> list[dict] | None:
-    if not LAST_STATE_FILE.exists():
-        return None
-    return json.loads(LAST_STATE_FILE.read_text(encoding="utf-8"))
-
-
-def save_current(signals: list[Signal]) -> None:
-    LAST_STATE_FILE.write_text(
-        json.dumps([s.to_dict() for s in signals], indent=2),
-        encoding="utf-8"
-    )
-
-
+# =========================
+# REPORT HELPERS
+# =========================
 def now_unix() -> int:
     return int(datetime.now(timezone.utc).timestamp())
 
@@ -777,7 +386,15 @@ def fmt_time(ts: int | None) -> str:
     return dt.strftime("%Y-%m-%d %H:%M")
 
 
-def pl_emoji(pips: int | None) -> str:
+def status_badge(status: str | None, pips: int | None) -> str:
+    s = (status or "").strip().lower()
+    if s == "filled":
+        return "🔒"
+    if s == "cancelled":
+        return "🚫"
+    if s == "expired":
+        return "⏱️"
+
     if pips is None:
         return "🟡"
     if pips > 0:
@@ -786,310 +403,6 @@ def pl_emoji(pips: int | None) -> str:
         return "🔴"
     return "🟡"
 
-
-# ---------------- TRADE HISTORY / WIN RATE ----------------
-def append_trade_outcome(signal: Signal) -> None:
-    """
-    Only log trades when pips is known (Filled with Profit/Loss pips on page).
-    Avoid duplicates by tracking keys we've already logged.
-    """
-    if signal.pips is None:
-        return
-
-    # Build a set of already logged keys (lightweight scan)
-    logged_keys = set()
-    if TRADES_LOG_FILE.exists():
-        with TRADES_LOG_FILE.open("r", encoding="utf-8") as f:
-            for line in f:
-                try:
-                    obj = json.loads(line)
-                    k = obj.get("key")
-                    if k:
-                        logged_keys.add(k)
-                except Exception:
-                    continue
-
-    k = signal.key()
-    if k in logged_keys:
-        return
-
-    entry = {
-        "key": k,
-        "pair": signal.pair,
-        "from_ts": signal.from_ts,
-        "till_ts": signal.till_ts,
-        "status": signal.status,
-        "pips": signal.pips,
-        "logged_at_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-    }
-    with TRADES_LOG_FILE.open("a", encoding="utf-8") as f:
-        f.write(json.dumps(entry) + "\n")
-
-
-def compute_win_rate() -> tuple[str, dict]:
-    """
-    Returns:
-      overall summary string
-      per_pair dict: {pair: {"wins":x,"losses":y,"win_rate":z}}
-    """
-    wins = losses = 0
-    per_pair: dict[str, dict] = {}
-
-    if not TRADES_LOG_FILE.exists():
-        return "No closed trades yet.", per_pair
-
-    def consume_trade(obj: dict) -> None:
-        nonlocal wins, losses, per_pair
-        pair = obj.get("pair")
-        pips = obj.get("pips")
-        if pair is None or pips is None:
-            return
-
-        per_pair.setdefault(pair, {"wins": 0, "losses": 0})
-        if pips > 0:
-            wins += 1
-            per_pair[pair]["wins"] += 1
-        elif pips < 0:
-            losses += 1
-            per_pair[pair]["losses"] += 1
-
-    with TRADES_LOG_FILE.open("r", encoding="utf-8") as f:
-        for line in f:
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                obj = json.loads(line)
-            except Exception:
-                continue
-
-            # ✅ handle both formats:
-            if isinstance(obj, dict):
-                consume_trade(obj)
-            elif isinstance(obj, list):
-                for item in obj:
-                    if isinstance(item, dict):
-                        consume_trade(item)
-
-    total = wins + losses
-    overall = (
-        f"Wins: {wins} | Losses: {losses} | Win rate: {((wins/total)*100):.1f}%"
-        if total else
-        "No wins/losses yet."
-    )
-
-    for pair, d in per_pair.items():
-        t = d["wins"] + d["losses"]
-        d["win_rate"] = (d["wins"] / t) * 100 if t else 0.0
-
-    return overall, per_pair
-
-
-# ---------------- DIFF + ALERTS ----------------
-TRACK_FIELDS = [
-    "status",
-    "sell_at",
-    "buy_at",
-    "bought_at",
-    "sold_at",
-    "take_profit_at",
-    "stop_loss_at",
-    "from_ts",
-    "till_ts",
-    "pips",
-]
-
-def index_by_key(items: list[dict]) -> dict[str, dict]:
-    return {it["key"]: it for it in items if "key" in it}
-
-
-def build_change_report(prev: list[dict] | None, cur: list[Signal]) -> tuple[bool, str, bool]:
-    """
-    Returns:
-      (changed?, telegram_html_text, removed_only?)
-    """
-    pulled_at = datetime.now(TZ).strftime("%Y-%m-%d %H:%M")
-
-    cur_list = [s.to_dict() for s in cur]
-    if prev is None:
-        text = build_full_snapshot(cur, pulled_at, prefix="🆕 First snapshot")
-        return True, text, False
-
-    prev_map = index_by_key(prev)
-    cur_map = index_by_key(cur_list)
-
-    changed_pairs_blocks: list[str] = []
-    expired_blocks: list[str] = []
-
-    now_ts = now_unix()
-
-    removed_count = 0
-    new_count = 0
-    changed_count = 0
-
-    # 1) Changes + New
-    for k, new in cur_map.items():
-        old = prev_map.get(k)
-        if old is None:
-            new_count += 1
-            changed_pairs_blocks.append(format_new_signal(new))
-            continue
-
-        diffs = []
-        for f in TRACK_FIELDS:
-            if old.get(f) != new.get(f):
-                diffs.append((f, old.get(f), new.get(f)))
-
-        if diffs:
-            changed_count += 1
-            changed_pairs_blocks.append(format_changed_signal(new, diffs))
-
-    # 2) Removed
-    for k, old in prev_map.items():
-        if k not in cur_map:
-            till_ts = old.get("till_ts")
-            if isinstance(till_ts, int) and till_ts <= now_ts:
-                expired_blocks.append(format_expired(old))
-            else:
-                removed_count += 1
-                changed_pairs_blocks.append(format_removed(old))
-
-    # 3) Expired (still exists but past till)
-    for k, new in cur_map.items():
-        till_ts = new.get("till_ts")
-        status = (new.get("status") or "").lower()
-        if isinstance(till_ts, int) and till_ts <= now_ts:
-            if status not in ("filled", "cancelled"):
-                expired_blocks.append(format_expired(new))
-
-    if not changed_pairs_blocks and not expired_blocks:
-        return False, "", False
-
-    overall_wr, _ = compute_win_rate()
-
-    header = [
-        "<b>🔔 Foresignal Update</b>",
-        f"<i>🕒 {pulled_at} (UTC+8)</i>",
-        "",
-        f"<b>📉 Win rate:</b> {overall_wr}",
-        ""
-    ]
-
-    blocks = header
-    if changed_pairs_blocks:
-        blocks.append("<b>Changes</b>")
-        blocks.extend(changed_pairs_blocks)
-        blocks.append("")
-    if expired_blocks:
-        blocks.append("<b>⏱️ Expired</b>")
-        blocks.extend(expired_blocks)
-        blocks.append("")
-
-    msg = "\n".join(blocks).strip()
-
-    removed_only = (removed_count > 0) and (new_count == 0) and (changed_count == 0) and (len(expired_blocks) == 0)
-    return True, msg, removed_only
-
-
-def format_field_name(f: str) -> str:
-    return {
-        "from_ts": "From",
-        "till_ts": "Till",
-        "take_profit_at": "TP",
-        "stop_loss_at": "SL",
-        "sell_at": "Sell at",
-        "buy_at": "Buy at",
-        "bought_at": "Bought at",
-        "sold_at": "Sold at",
-        "status": "Status",
-        "pips": "Pips",
-    }.get(f, f)
-
-
-def safe_str(v) -> str:
-    if v is None:
-        return "-"
-    if isinstance(v, int) and ("ts" in str(v)):
-        return str(v)
-    return str(v)
-
-
-def format_changed_signal(new: dict, diffs: list[tuple[str, object, object]]) -> str:
-    pair = new.get("pair", "?")
-    status = new.get("status", "")
-    pips = new.get("pips", None)
-
-    em = status_badge(status, pips if isinstance(pips, int) else None)
-    lines = [f"<b>{pair}</b> {em} <i>{status}</i>"]
-    # only show changed fields
-    for f, oldv, newv in diffs:
-        if f in ("from_ts", "till_ts"):
-            old_s = fmt_time(oldv) if isinstance(oldv, int) else "-"
-            new_s = fmt_time(newv) if isinstance(newv, int) else "-"
-            lines.append(f"{format_field_name(f)}: <code>{old_s}</code> → <code>{new_s}</code>")
-        else:
-            lines.append(f"{format_field_name(f)}: <code>{safe_str(oldv)}</code> → <code>{safe_str(newv)}</code>")
-
-    return "\n".join(lines) + "\n"
-
-
-def format_new_signal(new: dict) -> str:
-    pair = new.get("pair", "?")
-    status = new.get("status", "")
-    p = new.get("pips")
-    em = status_badge(status, p if isinstance(p, int) else None)
-
-    lines = [f"<b>{pair}</b> 🆕 {em} <i>{status}</i>"]
-    lines.append(f"From: <code>{fmt_time(new.get('from_ts'))}</code>")
-    lines.append(f"Till: <code>{fmt_time(new.get('till_ts'))}</code>")
-
-    for label, key in [
-        ("Sell at", "sell_at"),
-        ("Buy at", "buy_at"),
-        ("Bought at", "bought_at"),
-        ("Sold at", "sold_at"),
-        ("TP", "take_profit_at"),
-        ("SL", "stop_loss_at"),
-    ]:
-        v = new.get(key) or ""
-        if v:
-            lines.append(f"{label}: <code>{v}</code>")
-
-    p = new.get("pips")
-    if isinstance(p, int):
-        lines.append(f"Pips: <code>{p}</code>")
-
-    return "\n".join(lines) + "\n"
-
-
-def format_removed(old: dict) -> str:
-    pair = old.get("pair", "?")
-    return f"<b>{pair}</b> ⚠️ <i>Removed from page</i>\nFrom: <code>{fmt_time(old.get('from_ts'))}</code>\nTill: <code>{fmt_time(old.get('till_ts'))}</code>\n"
-
-
-def format_expired(s: dict) -> str:
-    pair = s.get("pair", "?")
-    return f"<b>{pair}</b> ⏱️ <i>Expired (Till reached)</i>\nTill: <code>{fmt_time(s.get('till_ts'))}</code>\n"
-def get_newly_filled(prev: list[dict] | None, cur: list[Signal]) -> list[Signal]:
-    if not prev:
-        return []
-
-    prev_map = index_by_key(prev)
-    newly = []
-
-    for s in cur:
-        old = prev_map.get(s.key())
-        if not old:
-            continue
-
-        old_status = (old.get("status") or "").lower()
-        new_status = (s.status or "").lower()
-
-        # ✅ became FILLED now
-        if old_status != "filled" and new_status == "filled":
-            newly.append(s)
-
-    return newly
 
 def build_full_snapshot(signals: list[Signal], pulled_at: str, prefix: str = "") -> str:
     lines = [
@@ -1122,69 +435,248 @@ def build_full_snapshot(signals: list[Signal], pulled_at: str, prefix: str = "")
             lines.append(f"Pips: <code>{s.pips}</code>")
         lines.append("")
 
-    overall_wr, _ = compute_win_rate()
-    lines.append(f"<b>📉 Win rate:</b> {overall_wr}")
-
     return "\n".join(lines).strip()
 
 
-# ---------------- TELEGRAM SEND ----------------
-def send_telegram_html(text: str) -> None:
-    token = os.getenv("TELEGRAM_BOT_TOKEN")
-    chat_id = os.getenv("TELEGRAM_CHAT_ID")
-    if not token or not chat_id:
-        print("Telegram not configured. Set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID.")
-        return
+# =========================
+# OPEN / FILLED DETECTION
+# =========================
+def is_open_and_unfilled(signal: Signal, now_ts: int) -> bool:
+    if not signal.from_ts or not signal.till_ts:
+        return False
+    if not (signal.from_ts <= now_ts <= signal.till_ts):
+        return False
 
-    # Telegram limit ~4096 chars. If too long, split cleanly.
-    chunks = []
-    while len(text) > 3900:
-        cut = text.rfind("\n\n", 0, 3900)
-        if cut == -1:
-            cut = 3900
-        chunks.append(text[:cut].strip())
-        text = text[cut:].strip()
-    if text:
-        chunks.append(text)
+    status = (signal.status or "").lower()
+    if status in ("filled", "cancelled", "expired"):
+        return False
 
-    url = f"https://api.telegram.org/bot{token}/sendMessage"
-    for chunk in chunks:
-        r = requests.post(
-            url,
-            json={
-                "chat_id": chat_id,
-                "text": chunk,
-                "parse_mode": "HTML",
-                "disable_web_page_preview": True,
-            },
-            timeout=30,
-        )
-        r.raise_for_status()
-def ig_headers(auth: dict) -> dict:
-    return {
-        "Content-Type": "application/json",
-        "Accept": "application/json",
+    # if the page already shows executed prices, treat as not-open
+    if signal.bought_at or signal.sold_at:
+        return False
+
+    return True
+
+
+def get_new_open_signals(prev: list[dict] | None, cur: list[Signal]) -> list[Signal]:
+    now_ts = now_unix()
+
+    prev_keys: set[str] = set()
+    if prev:
+        prev_keys = {p.get("key", "") for p in prev if isinstance(p, dict) and p.get("key")}
+
+    new_open: list[Signal] = []
+    for s in cur:
+        if s.key() in prev_keys:
+            continue
+        if is_open_and_unfilled(s, now_ts):
+            new_open.append(s)
+
+    return new_open
+
+
+def index_by_key(items: list[dict]) -> dict[str, dict]:
+    return {it["key"]: it for it in items if isinstance(it, dict) and "key" in it}
+
+
+def get_newly_filled(prev: list[dict] | None, cur: list[Signal]) -> list[Signal]:
+    if not prev:
+        return []
+    prev_map = index_by_key(prev)
+    newly: list[Signal] = []
+
+    for s in cur:
+        old = prev_map.get(s.key())
+        if not old:
+            continue
+        old_status = (old.get("status") or "").lower()
+        new_status = (s.status or "").lower()
+        if old_status != "filled" and new_status == "filled":
+            newly.append(s)
+
+    return newly
+
+
+# =========================
+# IG (LOGIN + TRADING)
+# =========================
+def ig_login() -> dict:
+    api_key = require_env("IG_API_KEY")
+    username = require_env("IG_USERNAME")
+    password = require_env("IG_PASSWORD")
+
+    base = "https://demo-api.ig.com" if IG_DEMO else "https://api.ig.com"
+    url = f"{base}/gateway/deal/session"
+
+    headers = {
+        "Content-Type": "application/json; charset=UTF-8",
+        "Accept": "application/json; charset=UTF-8",
+        "X-IG-API-KEY": api_key,
         "Version": "2",
+    }
+    payload = {"identifier": username, "password": password}
+
+    r = requests.post(url, headers=headers, json=payload, timeout=30)
+    if not r.ok:
+        raise RuntimeError(f"IG login failed {r.status_code}: {r.text}")
+
+    body = r.json()
+    return {
+        "api_key": api_key,
+        "cst": r.headers.get("CST"),
+        "xst": r.headers.get("X-SECURITY-TOKEN"),
+        "account_id": body.get("currentAccountId") or body.get("accountId"),
+        "base": f"{base}/gateway/deal",
+    }
+
+
+def _ig_headers(auth: dict, version: str = "2") -> dict:
+    return {
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+        "Version": version,
         "X-IG-API-KEY": auth["api_key"],
         "CST": auth["cst"],
         "X-SECURITY-TOKEN": auth["xst"],
     }
+
+
+def ig_open_market(auth: dict, epic: str, direction: str, size: float, pair: str) -> str:
+    direction = direction.upper().strip()
+    if direction not in ("BUY", "SELL"):
+        raise ValueError("direction must be BUY/SELL")
+    if size <= 0:
+        raise ValueError("size must be > 0")
+
+    currency_code = PAIR_CCY.get(pair, "USD")
+
+    url = f"{auth['base'].rstrip('/')}/positions/otc"
+    payload = {
+        "epic": epic,
+        "expiry": "-",
+        "direction": direction,
+        "orderType": "MARKET",
+        "size": float(size),
+        "forceOpen": True,
+        "currencyCode": currency_code,
+        "guaranteedStop": False,
+    }
+
+    r = requests.post(url, headers=_ig_headers(auth, "2"), json=payload, timeout=20)
+    r.raise_for_status()
+    data = r.json()
+    if "dealReference" not in data:
+        raise RuntimeError(f"Unexpected IG response: {data}")
+    return data["dealReference"]
+
+
+def ig_confirm(auth: dict, deal_ref: str, tries: int = 6) -> dict:
+    url = f"{auth['base'].rstrip('/')}/confirms/{deal_ref}"
+    headers = _ig_headers(auth, "1")
+
+    delay = 0.4
+    last_err: str | None = None
+
+    for _ in range(tries):
+        try:
+            r = requests.get(url, headers=headers, timeout=15)
+            if r.status_code >= 500:
+                last_err = f"{r.status_code} {r.text}"
+                time.sleep(delay)
+                delay *= 2
+                continue
+            r.raise_for_status()
+            return r.json()
+        except Exception as e:
+            last_err = str(e)
+            time.sleep(delay)
+            delay *= 2
+
+    raise RuntimeError(f"Confirm failed after retries: {last_err}")
+
+
+def ig_attach_sl_then_tp(
+    auth: dict,
+    deal_id: str,
+    sl: float,
+    tp: float,
+    guaranteed_stop: bool = False,
+    trailing_stop: bool = False,
+    timeout: int = 20,
+) -> dict:
+    base = auth["base"].rstrip("/")
+    url = f"{base}/positions/otc/{deal_id}"
+    headers = _ig_headers(auth, "2")
+
+    results: dict[str, Any] = {"deal_id": deal_id}
+
+    # STOP first
+    sl_payload = {
+        "stopLevel": float(sl),
+        "guaranteedStop": bool(guaranteed_stop),
+        "trailingStop": bool(trailing_stop),
+    }
+    r1 = requests.put(url, headers=headers, json=sl_payload, timeout=timeout)
+    r1.raise_for_status()
+    results["stop_loss_response"] = r1.json()
+
+    # TP second
+    tp_payload = {
+        "limitLevel": float(tp),
+        "stopLevel": float(sl),
+        "guaranteedStop": bool(guaranteed_stop),
+        "trailingStop": bool(trailing_stop),
+    }
+    r2 = requests.put(url, headers=headers, json=tp_payload, timeout=timeout)
+    r2.raise_for_status()
+    results["take_profit_response"] = r2.json()
+
+    return results
+
+
 def ig_get_positions(auth: dict) -> list[dict]:
-    url = f"{auth['base']}/positions"
-    r = requests.get(url, headers=ig_headers(auth), timeout=20)
+    url = f"{auth['base'].rstrip('/')}/positions"
+    r = requests.get(url, headers=_ig_headers(auth, "2"), timeout=20)
     r.raise_for_status()
     return r.json().get("positions", [])
+
+
+def ig_get_working_orders(auth: dict) -> list[dict]:
+    url = f"{auth['base'].rstrip('/')}/workingorders"
+    r = requests.get(url, headers=_ig_headers(auth, "2"), timeout=20)
+    r.raise_for_status()
+    return r.json().get("workingOrders", [])
+
+
+def ig_delete_working_orders_for_epic(auth: dict, epic: str) -> None:
+    orders = ig_get_working_orders(auth)
+    headers = _ig_headers(auth, "2")
+    base = auth["base"].rstrip("/")
+
+    for o in orders:
+        wo = o.get("workingOrder", {}) if isinstance(o, dict) else {}
+        if wo.get("epic") != epic:
+            continue
+        deal_id = wo.get("dealId")
+        if not deal_id:
+            continue
+        url = f"{base}/workingorders/otc/{deal_id}"
+        rd = requests.delete(url, headers=headers, timeout=20)
+        print(f"🗑️ Deleting working order epic={epic} dealId={deal_id} -> {rd.status_code}")
+        rd.raise_for_status()
+
 
 def ig_close_position(
     auth: dict,
     *,
     deal_id: str,
     epic: str,
-    direction: str,
+    open_direction: str,
     size: float,
-    currency_code: str
-):
-    close_direction = "SELL" if direction == "BUY" else "BUY"
+    currency_code: str,
+) -> None:
+    open_direction = (open_direction or "").upper()
+    close_direction = "SELL" if open_direction == "BUY" else "BUY"
 
     payload = {
         "dealId": deal_id,
@@ -1194,135 +686,58 @@ def ig_close_position(
         "size": float(size),
         "expiry": "-",
         "forceOpen": False,
-        "guaranteedStop": False,   # REQUIRED
-        "currencyCode": currency_code,     # REQUIRED
+        "guaranteedStop": False,
+        "currencyCode": currency_code,
     }
 
-    headers = {
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-        "Version": "2",
-        "X-IG-API-KEY": auth["api_key"],
-        "CST": auth["cst"],
-        "X-SECURITY-TOKEN": auth["xst"],
-    }
-
-    url = f"{auth['base']}/positions/otc"
-
-    r = requests.post(url, headers=headers, json=payload, timeout=20)
+    url = f"{auth['base'].rstrip('/')}/positions/otc"
+    r = requests.post(url, headers=_ig_headers(auth, "2"), json=payload, timeout=20)
     print("CLOSE RESPONSE:", r.status_code, r.text)
     r.raise_for_status()
-def enforce_single_position_per_epic(auth: dict, epic: str) -> None:
+
+
+def ig_close_all_positions_for_epic(auth: dict, epic: str, pair: str) -> None:
+    currency_code = PAIR_CCY.get(pair, "USD")
     positions = ig_get_positions(auth)
 
     for p in positions:
-        pos = p.get("position", {})
-        mkt = p.get("market", {})
+        if not isinstance(p, dict):
+            continue
+        mkt = p.get("market", {}) or {}
+        pos = p.get("position", {}) or {}
         if mkt.get("epic") != epic:
             continue
 
         deal_id = pos.get("dealId")
-        open_dir = (pos.get("direction") or "").upper()  # BUY/SELL
-        open_size = float(pos.get("size") or 0)
+        direction = pos.get("direction")
+        size = pos.get("size")
 
-        if not deal_id or open_size <= 0:
+        if not deal_id or not direction or not size:
             continue
 
-        close_dir = "SELL" if open_dir == "BUY" else "BUY"
-        print(f"♻️ Closing existing {epic} position dealId={deal_id} dir={open_dir} size={open_size}")
-        ig_close_position(auth, deal_id=deal_id, direction_to_close=close_dir, size=open_size)
-def ig_get_open_positions(auth):
-    url = f"{auth['base']}/positions"
-    headers = {
-        "X-IG-API-KEY": auth["api_key"],
-        "CST": auth["cst"],
-        "X-SECURITY-TOKEN": auth["xst"],
-        "Version": "2",
-        "Accept": "application/json",
-    }
-    r = requests.get(url, headers=headers, timeout=20)
-    r.raise_for_status()
-    return r.json()["positions"]
-def find_existing_position(positions, epic):
-    for p in positions:
-        if p["market"]["epic"] == epic:
-            return p
-    return None
-def ig_get_working_orders(auth: dict) -> list[dict]:
-    url = f"{auth['base']}/workingorders"
-    headers = {
-        "Accept": "application/json",
-        "Version": "2",
-        "X-IG-API-KEY": auth["api_key"],
-        "CST": auth["cst"],
-        "X-SECURITY-TOKEN": auth["xst"],
-    }
-    r = requests.get(url, headers=headers, timeout=20)
-    r.raise_for_status()
-    return r.json().get("workingOrders", [])
-
-def ig_delete_working_orders_for_epic(auth: dict, epic: str, pair: str) -> None:
-    orders = ig_get_working_orders(auth)
-
-    headers = {
-        "Accept": "application/json",
-        "Version": "2",
-        "X-IG-API-KEY": auth["api_key"],
-        "CST": auth["cst"],
-        "X-SECURITY-TOKEN": auth["xst"],
-    }
-
-    for o in orders:
-        wo = o.get("workingOrder", {})
-        if wo.get("epic") != epic:
-            continue
-
-        deal_id = wo.get("dealId")
-        if not deal_id:
-            continue
-
-        url = f"{auth['base']}/workingorders/otc/{deal_id}"
-        rd = requests.delete(url, headers=headers, timeout=20)
-        print(f"🗑️ Deleting working order {epic} dealId={deal_id} ->", rd.status_code, rd.text)
-        rd.raise_for_status()
-def ig_close_all_positions_for_epic(auth: dict, epic: str, pair: str):
-    currency_code = PAIR_CCY.get(pair, "USD")
-    url = f"{auth['base']}/positions"
-    headers = {
-        "Accept": "application/json",
-        "Version": "2",
-        "X-IG-API-KEY": auth["api_key"],
-        "CST": auth["cst"],
-        "X-SECURITY-TOKEN": auth["xst"],
-    }
-
-    r = requests.get(url, headers=headers, timeout=20)
-    r.raise_for_status()
-
-    for p in r.json()["positions"]:
-        if p["market"]["epic"] != epic:
-            continue
-
-        pos = p["position"]
-
-        print(f"♻️ Closing OPEN position {epic} dealId={pos['dealId']}")
-
+        print(f"♻️ Closing OPEN position epic={epic} dealId={deal_id}")
         ig_close_position(
             auth,
-            deal_id=pos["dealId"],
-            epic=epic,                    # ✅ PASS EPIC
-            direction=pos["direction"],
-            size=pos["size"],
-            currency_code=currency_code
+            deal_id=str(deal_id),
+            epic=epic,
+            open_direction=str(direction),
+            size=float(size),
+            currency_code=currency_code,
         )
 
-# ---------------- MAIN ----------------
+
+# =========================
+# MAIN
+# =========================
 def main() -> None:
     html = fetch_html(URL)
     init_decoder_from_html(html)
     signals = parse_signals(html)
 
-    prev = load_previous()  # previous snapshot list[dict] or None
+    prev = load_previous()
+    ordered_keys = load_ordered_keys()
+
+    # 1) Close on newly FILLED (Foresignal -> IG)
     newly_filled = get_newly_filled(prev, signals)
     if newly_filled:
         try:
@@ -1336,19 +751,13 @@ def main() -> None:
                 epic = PAIR_TO_EPIC.get(s.pair)
                 if not epic:
                     continue
-
-                # ✅ cancel any pending orders for that epic
-                ig_delete_working_orders_for_epic(ig_auth, epic, s.pair)
-
-                # ✅ close any open positions for that epic
+                ig_delete_working_orders_for_epic(ig_auth, epic)
                 ig_close_all_positions_for_epic(ig_auth, epic, s.pair)
 
             print(f"✅ Closed IG positions for {len(newly_filled)} FILLED signals")
-        new_open_signals = get_new_open_signals(prev, signals)
 
-    # Always save snapshot at end so "new" becomes "known" next run
-    # (but only trade if send succeeded)
-    ordered_keys = load_ordered_keys()
+    # ✅ ALWAYS compute new_open_signals (fixes UnboundLocalError)
+    new_open_signals = get_new_open_signals(prev, signals)
 
     if not new_open_signals:
         print("No new open/unfilled signals.")
@@ -1357,90 +766,79 @@ def main() -> None:
 
     pulled_at = datetime.now(TZ).strftime("%Y-%m-%d %H:%M")
 
-    # Build a report for ONLY the new open signals (includes TP & SL already)
     report = build_full_snapshot(
         new_open_signals,
         pulled_at,
-        prefix="🆕 New OPEN Signals (Unfilled)"
+        prefix="🆕 New OPEN Signals (Unfilled)",
     )
 
-    # 1) Send notifications
+    # 2) Notify
     sent_tg = send_telegram_html(report)
-
     subject = f"Foresignal NEW OPEN - {pulled_at} (UTC+8)"
     sent_blog = post_to_blogger(subject=subject, html_body=report)
 
     print(f"Telegram sent? {sent_tg}")
     print(f"Blogger posted? {sent_blog}")
 
-    # 2) If "send triggered" → place IG orders
+    # 3) Place IG orders if notified
     if sent_tg or sent_blog:
         try:
-            ig_auth = ig_login()  # expects IG_API_KEY/IG_USERNAME/IG_PASSWORD in env
+            ig_auth = ig_login()
         except Exception as e:
-            print(f"IG login failed: {e}")
+            print(f"IG login failed (trade step): {e}")
             ig_auth = None
-       
+
         if ig_auth:
             for s in new_open_signals:
                 k = s.key()
-                
                 if k in ordered_keys:
                     continue
 
                 epic = PAIR_TO_EPIC.get(s.pair)
-
-
-
-                
-
-                
-                 
                 if not epic:
                     print(f"⚠️ No IG EPIC mapping for {s.pair}; skipping.")
                     continue
-                ig_close_all_positions_for_epic(ig_auth, epic, s.pair)
-                ig_delete_working_orders_for_epic(ig_auth, epic, s.pair)
 
-                
+                # clean slate
+                try:
+                    ig_close_all_positions_for_epic(ig_auth, epic, s.pair)
+                    ig_delete_working_orders_for_epic(ig_auth, epic)
+                except Exception as e:
+                    print(f"⚠️ Cleanup failed for {s.pair}: {e}")
 
-                # Direction + entry
+                # direction
                 if s.buy_at:
                     direction = "BUY"
-                    entry = float(s.buy_at)
                 elif s.sell_at:
                     direction = "SELL"
-                    entry = float(s.sell_at)
                 else:
                     print(f"⚠️ Missing buy_at/sell_at for {s.pair}; skipping.")
                     continue
 
-                # TP/SL required
+                # require TP/SL
                 if not s.take_profit_at or not s.stop_loss_at:
                     print(f"⚠️ Missing TP/SL for {s.pair}; skipping.")
                     continue
 
                 tp = float(s.take_profit_at)
                 sl = float(s.stop_loss_at)
-                try:
-                    
 
-                    # 1) Open market position (NO TP/SL here)
+                try:
                     deal_ref = ig_open_market(ig_auth, epic, direction, 0.5, s.pair)
                     conf = ig_confirm(ig_auth, deal_ref)
-                    
+
                     if conf.get("dealStatus") != "ACCEPTED":
                         raise RuntimeError(f"Deal rejected: {conf.get('reason')} | {conf}")
-                    
+
                     deal_id = conf.get("dealId") or (conf.get("affectedDeals") or [{}])[0].get("dealId")
                     if not deal_id:
                         raise RuntimeError(f"No dealId in confirm: {conf}")
-                    edit_resp = ig_attach_sl_then_tp(ig_auth, deal_id, sl , tp)
-                    #edit_resp = ig_attach_tp_sl(ig_auth, deal_id, tp, sl)
+
+                    edit_resp = ig_attach_sl_then_tp(ig_auth, str(deal_id), sl, tp)
                     print("TP/SL attached:", edit_resp)
-                    
-                    
+
                     ordered_keys.add(k)
+
                 except Exception as e:
                     print(f"❌ IG order failed for {s.pair}: {e}")
 
@@ -1448,7 +846,7 @@ def main() -> None:
     else:
         print("No notification sent; IG order NOT placed.")
 
-    # 3) Save current snapshot (so these are not 'new' next run)
+    # 4) Save snapshot
     save_current(signals)
 
 
