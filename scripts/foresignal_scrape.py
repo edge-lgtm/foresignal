@@ -835,14 +835,12 @@ def main() -> None:
                 if not s.take_profit_at or not s.stop_loss_at:
                     print(f"⚠️ Missing TP/SL for {s.pair}; skipping.")
                     continue
-                if(s.pair == "EUR/USD"){
+                if s.pair == "EUR/USD":
                     tp = float(mini_to_price(s.take_profit_at))
                     sl = float(mini_to_price(s.stop_loss_at))
-                }else{
+                else:
                     tp = float(s.take_profit_at)
                     sl = float(s.stop_loss_at)
-                }
-                
 
                 try:
                     deal_ref = ig_open_market(ig_auth, epic, direction, 0.5, s.pair)
