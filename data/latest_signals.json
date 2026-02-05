@@ -43,16 +43,16 @@
   },
   {
     "pair": "GBP/CHF",
-    "status": "Buy",
+    "status": "Filled",
     "from_ts": 1770304800,
     "till_ts": 1770319200,
     "sell_at": "",
-    "buy_at": "1.0498",
-    "bought_at": "",
-    "sold_at": "",
-    "take_profit_at": "1.0533",
-    "stop_loss_at": "1.0454",
-    "pips": null,
+    "buy_at": "",
+    "bought_at": "1.0498",
+    "sold_at": "1.0533",
+    "take_profit_at": "",
+    "stop_loss_at": "",
+    "pips": 35,
     "key": "GBP/CHF|1770304800|1770319200"
   },
   {
