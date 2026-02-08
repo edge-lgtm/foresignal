@@ -5,11 +5,11 @@
     "from_ts": 1770382200,
     "till_ts": 1770396600,
     "sell_at": "",
-    "buy_at": "0.6977",
+    "buy_at": "39077",
     "bought_at": "",
     "sold_at": "",
-    "take_profit_at": "0.7001",
-    "stop_loss_at": "0.6947",
+    "take_profit_at": "37335",
+    "stop_loss_at": "39027",
     "pips": null,
     "key": "AUD/USD|1770382200|1770396600"
   },
@@ -20,11 +20,11 @@
     "till_ts": 1770391920,
     "sell_at": "",
     "buy_at": "",
-    "bought_at": "185.45",
-    "sold_at": "185.24",
+    "bought_at": "5.828",
+    "sold_at": "5.842",
     "take_profit_at": "",
     "stop_loss_at": "",
-    "pips": -21,
+    "pips": 45,
     "key": "EUR/JPY|1770377520|1770391920"
   },
   {
@@ -34,11 +34,11 @@
     "till_ts": 1770390120,
     "sell_at": "",
     "buy_at": "",
-    "bought_at": "1.1819",
-    "sold_at": "1.1796",
+    "bought_at": "55.50",
+    "sold_at": "55709",
     "take_profit_at": "",
     "stop_loss_at": "",
-    "pips": -23,
+    "pips": 4,
     "key": "EUR/USD|1770375720|1770390120"
   },
   {
@@ -48,11 +48,11 @@
     "till_ts": 1770388800,
     "sell_at": "",
     "buy_at": "",
-    "bought_at": "1.0556",
-    "sold_at": "1.0562",
+    "bought_at": "53889",
+    "sold_at": "53894",
     "take_profit_at": "",
     "stop_loss_at": "",
-    "pips": 6,
+    "pips": 9,
     "key": "GBP/CHF|1770374400|1770388800"
   },
   {
@@ -62,11 +62,11 @@
     "till_ts": 1770398820,
     "sell_at": "",
     "buy_at": "",
-    "bought_at": "1.3587",
-    "sold_at": "1.3619",
+    "bought_at": "58.7",
+    "sold_at": "5950",
     "take_profit_at": "",
     "stop_loss_at": "",
-    "pips": 32,
+    "pips": 4,
     "key": "GBP/USD|1770384420|1770398820"
   },
   {
@@ -76,11 +76,11 @@
     "till_ts": 1770393600,
     "sell_at": "",
     "buy_at": "",
-    "bought_at": "0.5990",
-    "sold_at": "0.6015",
+    "bought_at": "38003",
+    "sold_at": "39358",
     "take_profit_at": "",
     "stop_loss_at": "",
-    "pips": 25,
+    "pips": 48,
     "key": "NZD/USD|1770379200|1770393600"
   },
   {
@@ -90,11 +90,11 @@
     "till_ts": 1770406920,
     "sell_at": "",
     "buy_at": "",
-    "bought_at": "1.3632",
-    "sold_at": "1.3651",
+    "bought_at": "594",
+    "sold_at": "5985",
     "take_profit_at": "",
     "stop_loss_at": "",
-    "pips": 19,
+    "pips": 50,
     "key": "USD/CAD|1770392520|1770406920"
   },
   {
@@ -104,11 +104,11 @@
     "till_ts": 1770405720,
     "sell_at": "",
     "buy_at": "",
-    "bought_at": "0.7759",
-    "sold_at": "0.7757",
+    "bought_at": "37780",
+    "sold_at": "37787",
     "take_profit_at": "",
     "stop_loss_at": "",
-    "pips": -2,
+    "pips": 4,
     "key": "USD/CHF|1770391320|1770405720"
   },
   {
@@ -118,11 +118,11 @@
     "till_ts": 1770391080,
     "sell_at": "",
     "buy_at": "",
-    "bought_at": "156.98",
-    "sold_at": "157.07",
+    "bought_at": "5890.",
+    "sold_at": "58737",
     "take_profit_at": "",
     "stop_loss_at": "",
-    "pips": 9,
+    "pips": 0,
     "key": "USD/JPY|1770369480|1770391080"
   }
 ]
