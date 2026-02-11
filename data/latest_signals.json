@@ -15,7 +15,7 @@
   },
   {
     "pair": "EUR/JPY",
-    "status": "Sell",
+    "status": "Cancelled",
     "from_ts": 1770827160,
     "till_ts": 1770841560,
     "sell_at": "5.455",
