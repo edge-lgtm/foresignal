@@ -85,16 +85,16 @@
   },
   {
     "pair": "USD/CAD",
-    "status": "Sell",
+    "status": "Filled",
     "from_ts": 1770790140,
     "till_ts": 1770818940,
-    "sell_at": "5842",
+    "sell_at": "",
     "buy_at": "",
-    "bought_at": "",
-    "sold_at": "",
-    "take_profit_at": "5838",
-    "stop_loss_at": "582.",
-    "pips": null,
+    "bought_at": "5838",
+    "sold_at": "5842",
+    "take_profit_at": "",
+    "stop_loss_at": "",
+    "pips": 50,
     "key": "USD/CAD|1770790140|1770818940"
   },
   {
@@ -113,16 +113,16 @@
   },
   {
     "pair": "USD/JPY",
-    "status": "",
-    "from_ts": null,
-    "till_ts": null,
-    "sell_at": "",
+    "status": "Sell",
+    "from_ts": 1770806760,
+    "till_ts": 1770821160,
+    "sell_at": "5840",
     "buy_at": "",
     "bought_at": "",
     "sold_at": "",
-    "take_profit_at": "",
-    "stop_loss_at": "",
+    "take_profit_at": "5833",
+    "stop_loss_at": "5899",
     "pips": null,
-    "key": "USD/JPY|0|0"
+    "key": "USD/JPY|1770806760|1770821160"
   }
 ]
