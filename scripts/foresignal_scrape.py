@@ -836,8 +836,8 @@ def main() -> None:
                     print(f"⚠️ Missing TP/SL for {s.pair}; skipping.")
                     continue
                 if s.pair == "EUR/USD":
-                    tp = float(mini_to_price(s.take_profit_at))
-                    sl = float(mini_to_price(s.stop_loss_at))
+                    tp = float(s.take_profit_at)
+                    sl = float(s.stop_loss_at)
                 else:
                     tp = float(s.take_profit_at)
                     sl = float(s.stop_loss_at)
