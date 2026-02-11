@@ -220,7 +220,43 @@ def load_ordered_keys() -> set[str]:
 
 def save_ordered_keys(keys: set[str]) -> None:
     ORDERED_FILE.write_text(json.dumps(sorted(keys), indent=2), encoding="utf-8")
+# =========================
+# OPEN / FILLED / CANCELLED DETECTION
+# =========================
+def get_newly_filled(prev: list[dict] | None, cur: list[Signal]) -> list[Signal]:
+    if not prev:
+        return []
+    prev_map = index_by_key(prev)
+    newly: list[Signal] = []
 
+    for s in cur:
+        old = prev_map.get(s.key())
+        if not old:
+            continue
+        old_status = (old.get("status") or "").lower()
+        new_status = (s.status or "").lower()
+        if old_status != "filled" and new_status == "filled":
+            newly.append(s)
+
+    return newly
+
+
+def get_newly_cancelled(prev: list[dict] | None, cur: list[Signal]) -> list[Signal]:
+    if not prev:
+        return []
+    prev_map = index_by_key(prev)
+    newly: list[Signal] = []
+
+    for s in cur:
+        old = prev_map.get(s.key())
+        if not old:
+            continue
+        old_status = (old.get("status") or "").lower()
+        new_status = (s.status or "").lower()
+        if old_status != "cancelled" and new_status == "cancelled":
+            newly.append(s)
+
+    return newly
 
 # =========================
 # MODEL
@@ -486,22 +522,7 @@ def index_by_key(items: list[dict]) -> dict[str, dict]:
     return {it["key"]: it for it in items if isinstance(it, dict) and "key" in it}
 
 
-def get_newly_filled(prev: list[dict] | None, cur: list[Signal]) -> list[Signal]:
-    if not prev:
-        return []
-    prev_map = index_by_key(prev)
-    newly: list[Signal] = []
 
-    for s in cur:
-        old = prev_map.get(s.key())
-        if not old:
-            continue
-        old_status = (old.get("status") or "").lower()
-        new_status = (s.status or "").lower()
-        if old_status != "filled" and new_status == "filled":
-            newly.append(s)
-
-    return newly
 
 
 # =========================
@@ -744,9 +765,15 @@ def main() -> None:
     prev = load_previous()
     ordered_keys = load_ordered_keys()
 
-    # 1) Close on newly FILLED (Foresignal -> IG)
+    # 1) Close on newly FILLED or newly CANCELLED (Foresignal -> IG)
     newly_filled = get_newly_filled(prev, signals)
-    if newly_filled:
+    newly_cancelled = get_newly_cancelled(prev, signals)
+
+    # merge + dedupe by key
+    newly_closed_map = {s.key(): s for s in (newly_filled + newly_cancelled)}
+    newly_closed = list(newly_closed_map.values())
+
+    if newly_closed:
         try:
             ig_auth = ig_login()
         except Exception as e:
@@ -754,22 +781,21 @@ def main() -> None:
             ig_auth = None
 
         if ig_auth:
-            for s in newly_filled:
+            for s in newly_closed:
                 epic = PAIR_TO_EPIC.get(s.pair)
                 if not epic:
                     continue
                 ig_delete_working_orders_for_epic(ig_auth, epic)
                 ig_close_all_positions_for_epic(ig_auth, epic, s.pair)
 
-            if newly_filled:
-                print(f"✅ Closed IG positions for {len(newly_filled)} FILLED signals:")
-                for i, s in enumerate(newly_filled, start=1):
-                    epic = PAIR_TO_EPIC.get(s.pair, "-")
-                    print(
-                        f"  {i}. {s.pair} | epic={epic} | "
-                        f"From={fmt_time(s.from_ts)} | Till={fmt_time(s.till_ts)} | "
-                        f"status={s.status} | pips={s.pips}"
-                    )
+            print(f"✅ Closed IG positions for {len(newly_closed)} CLOSED signals (FILLED/CANCELLED):")
+            for i, s in enumerate(newly_closed, start=1):
+                epic = PAIR_TO_EPIC.get(s.pair, "-")
+                print(
+                    f"  {i}. {s.pair} | epic={epic} | "
+                    f"From={fmt_time(s.from_ts)} | Till={fmt_time(s.till_ts)} | "
+                    f"status={s.status} | pips={s.pips}"
+                )
             else:
                 print("✅ Closed IG positions for 0 FILLED signals")
     # ✅ ALWAYS compute new_open_signals (fixes UnboundLocalError)
