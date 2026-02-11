@@ -836,11 +836,19 @@ def main() -> None:
                     print(f"⚠️ Missing TP/SL for {s.pair}; skipping.")
                     continue
                 if s.pair == "EUR/USD":
-                    tp = float(s.take_profit_at)
-                    sl = float(s.stop_loss_at)
+                    tp_raw = str(s.take_profit_at).strip()
+                    # Remove trailing dots
+                    tp_clean = tp_raw.rstrip(".")
+                    tp = float(tp_clean)
+                    sl_raw = str(s.stop_loss_at).strip().rstrip(".")
+                    sl = float(sl_raw)
                 else:
-                    tp = float(s.take_profit_at)
-                    sl = float(s.stop_loss_at)
+                    tp_raw = str(s.take_profit_at).strip()
+                    # Remove trailing dots
+                    tp_clean = tp_raw.rstrip(".")
+                    tp = float(tp_clean)
+                    sl_raw = str(s.stop_loss_at).strip().rstrip(".")
+                    sl = float(sl_raw)
 
                 try:
                     deal_ref = ig_open_market(ig_auth, epic, direction, 0.5, s.pair)
