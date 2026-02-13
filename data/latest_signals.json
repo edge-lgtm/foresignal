@@ -1,16 +1,16 @@
 [
   {
     "pair": "AUD/USD",
-    "status": "Buy",
+    "status": "Filled",
     "from_ts": 1770977520,
     "till_ts": 1770991920,
     "sell_at": "",
-    "buy_at": "37398",
-    "bought_at": "",
-    "sold_at": "",
-    "take_profit_at": "373.2",
-    "stop_loss_at": "37325",
-    "pips": null,
+    "buy_at": "",
+    "bought_at": "37398",
+    "sold_at": "373.4",
+    "take_profit_at": "",
+    "stop_loss_at": "",
+    "pips": 57,
     "key": "AUD/USD|1770977520|1770991920"
   },
   {
@@ -85,16 +85,16 @@
   },
   {
     "pair": "USD/CAD",
-    "status": "Buy",
+    "status": "Filled",
     "from_ts": 1770962880,
     "till_ts": 1770991680,
     "sell_at": "",
-    "buy_at": "5950",
-    "bought_at": "",
-    "sold_at": "",
-    "take_profit_at": "592",
-    "stop_loss_at": "58.0",
-    "pips": null,
+    "buy_at": "",
+    "bought_at": "5950",
+    "sold_at": "595",
+    "take_profit_at": "",
+    "stop_loss_at": "",
+    "pips": 9,
     "key": "USD/CAD|1770962880|1770991680"
   },
   {
