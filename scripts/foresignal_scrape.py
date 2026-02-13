@@ -850,9 +850,9 @@ def main() -> None:
 
                 # direction
                 if s.buy_at:
-                    direction = "BUY"
-                elif s.sell_at:
                     direction = "SELL"
+                elif s.sell_at:
+                    direction = "BUY"
                 else:
                     print(f"⚠️ Missing buy_at/sell_at for {s.pair}; skipping.")
                     continue
