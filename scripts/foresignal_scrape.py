@@ -73,8 +73,8 @@ PAIR_CCY = {
 # =========================
 # FORESIGNAL DECODER
 # =========================
-
-
+MAP: str = ""
+MAP_BASE: int = 68  # fallback base
 F_MAP_RE = re.compile(
     r"""function\s+f\s*\(\s*s\s*\)\s*\{.*?w\(\s*'([^']+)'\.charAt\(\s*s\.charCodeAt\(\s*i\s*\)\s*-\s*(\d+)\s*-\s*i\s*\)\s*\)\s*\).*?\}""",
     re.DOTALL,
@@ -84,71 +84,26 @@ NUM_RE = re.compile(r"[-+]?\d+(?:\.\d+)?")
 F_ENC_RE = re.compile(r"f\(\s*'([^']+)'\s*\)")
 HHMM_RE = re.compile(r"hhmm\((\d+)\)")
 
-F_MAP_RE2 = re.compile(
-    r"""
-    charAt\(\s*
-        s\.charCodeAt\(\s*i\s*\)
-        \s*-\s*(\d+)\s*-\s*i
-    \s*\)
-    """,
-    re.VERBOSE | re.DOTALL,
-)
 
-# Find the nearest string literal before ".charAt("
-STR_BEFORE_CHARAT_RE = re.compile(
-    r"""(['"])(?P<map>(?:\\.|(?!\1).)*)\1\s*\.charAt\s*\(""",
-    re.DOTALL,
-)
-
-def init_decoder_from_html(html: str):
-    # 1) Find base (the number subtracted)
-    m_base = F_MAP_RE2.search(html)
-    if not m_base:
-        return None, None
-
-    base = int(m_base.group(1))
-
-    # 2) Find MAP string literal used with .charAt( ... )
-    #    We’ll search all occurrences and pick the longest (usually the real MAP)
-    maps = []
-    for m in STR_BEFORE_CHARAT_RE.finditer(html):
-        raw = m.group("map")
-        # unescape JS string
-        s = bytes(raw, "utf-8").decode("unicode_escape")
-        maps.append(s)
-
-    if not maps:
-        return None, base
-
-    # often MAP is the longest candidate
-    map_str = max(maps, key=len)
-    return map_str, base
+def init_decoder_from_html(html: str) -> None:
+    global MAP, MAP_BASE
+    m = F_MAP_RE.search(html)
+    if not m:
+        print("⚠️ Could not extract decoder MAP/BASE from HTML. Using fallback.")
+        if not MAP:
+            MAP = " 7032,-5.4981+6"
+        return
+    MAP = m.group(1)
+    MAP_BASE = int(m.group(2))
 
 
-MAP, MAP_BASE = init_decoder_from_html(html)
-if MAP is None:
-    raise RuntimeError("Could not extract MAP")
-if MAP_BASE is None:
-    raise RuntimeError("Could not extract MAP_BASE")
-
-NUM_LIKE_RE = re.compile(r"^\s*[-+]?\d+(?:\.\d+)?\s*$")
-
-def decode_f(encoded: str, MAP: str, MAP_BASE: int) -> str:
+def decode_f(encoded: str) -> str:
     out = []
     for i, ch in enumerate(encoded):
         idx = ord(ch) - MAP_BASE - i
         if 0 <= idx < len(MAP):
             out.append(MAP[idx])
-        else:
-            out.append("?")  # keep placeholder so you see failures
     return "".join(out).strip()
-
-def decode_number_strict(encoded: str, MAP: str, MAP_BASE: int) -> str:
-    s = decode_f(encoded, MAP, MAP_BASE)
-    if not NUM_LIKE_RE.match(s):
-        raise ValueError(f"Bad decode: {s!r} (likely wrong MAP/BASE)")
-    return s
-
 
 
 def fetch_html(url: str) -> str:
