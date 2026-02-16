@@ -71,30 +71,152 @@ PAIR_CCY = {
 
 
 # =========================
-# FORESIGNAL DECODER
+# FORESIGNAL DECODER (ROBUST)
 # =========================
+
 MAP: str = ""
 MAP_BASE: int = 68  # fallback base
-F_MAP_RE = re.compile(
+
+# Existing helpers you already have:
+NUM_RE = re.compile(r"[-+]?\d+(?:\.\d+)?")
+F_ENC_RE = re.compile(r"f\(\s*(['\"])(.*?)\1\s*\)")
+HHMM_RE = re.compile(r"hhmm\((\d+)\)")
+
+# 1) Base used in: s.charCodeAt(i) - BASE - i
+BASE_RE = re.compile(
+    r"s\.charCodeAt\(\s*i\s*\)\s*-\s*(\d+)\s*-\s*i",
+    re.DOTALL,
+)
+
+# 2) Literal string directly before .charAt(  e.g.  "....".charAt(...)
+STR_BEFORE_CHARAT_RE = re.compile(
+    r"""(['"])(?P<map>(?:\\.|(?!\1).)*)\1\s*\.charAt\s*\(""",
+    re.DOTALL,
+)
+
+# 3) MAP assigned to a variable then used as var.charAt(
+VAR_ASSIGN_RE = re.compile(
+    r"""(?:var|let|const)\s+(?P<var>[A-Za-z_$][\w$]*)\s*=\s*(['"])(?P<map>(?:\\.|(?!\2).)*)\2\s*;""",
+    re.DOTALL,
+)
+VAR_CHARAT_USE_RE = re.compile(
+    r"""(?P<var>[A-Za-z_$][\w$]*)\s*\.charAt\s*\(""",
+    re.DOTALL,
+)
+
+# 4) Your original pattern (kept as a fallback)
+F_MAP_RE_OLD = re.compile(
     r"""function\s+f\s*\(\s*s\s*\)\s*\{.*?w\(\s*'([^']+)'\.charAt\(\s*s\.charCodeAt\(\s*i\s*\)\s*-\s*(\d+)\s*-\s*i\s*\)\s*\)\s*\).*?\}""",
     re.DOTALL,
 )
 
-NUM_RE = re.compile(r"[-+]?\d+(?:\.\d+)?")
-F_ENC_RE = re.compile(r"f\(\s*'([^']+)'\s*\)")
-HHMM_RE = re.compile(r"hhmm\((\d+)\)")
+NUM_LIKE_RE = re.compile(r"^\s*[-+]?\d+(?:\.\d+)?\s*$")
+
+
+def _js_unescape(s: str) -> str:
+    # best-effort unescape for \n, \uXXXX, \xNN etc.
+    try:
+        return bytes(s, "utf-8").decode("unicode_escape")
+    except Exception:
+        return s
+
+
+def _extract_base(html: str) -> int:
+    m = BASE_RE.search(html)
+    return int(m.group(1)) if m else 68
+
+
+def _extract_test_encoded(html: str) -> str | None:
+    m = F_ENC_RE.search(html)
+    return m.group(2) if m else None
+
+
+def _extract_maps_literal_charat(html: str) -> list[str]:
+    maps: list[str] = []
+    for m in STR_BEFORE_CHARAT_RE.finditer(html):
+        maps.append(_js_unescape(m.group("map")))
+    return maps
+
+
+def _extract_maps_var_assignment(html: str) -> list[str]:
+    assigns = {m.group("var"): _js_unescape(m.group("map")) for m in VAR_ASSIGN_RE.finditer(html)}
+    used = set(m.group("var") for m in VAR_CHARAT_USE_RE.finditer(html))
+    return [assigns[v] for v in assigns.keys() if v in used]
+
+
+def _decode_with(map_str: str, base: int, encoded: str) -> str:
+    out = []
+    for i, ch in enumerate(encoded):
+        idx = ord(ch) - base - i
+        if 0 <= idx < len(map_str):
+            out.append(map_str[idx])
+    return "".join(out).strip()
+
+
+def _score_map(map_str: str, base: int, test_encoded: str | None) -> int:
+    if not map_str or len(map_str) < 5:
+        return -999999
+
+    score = 0
+    score += min(len(map_str), 800)  # reward longer
+
+    if test_encoded:
+        dec = _decode_with(map_str, base, test_encoded)
+
+        # strong reward if it looks like a number
+        if NUM_LIKE_RE.match(dec):
+            score += 5000
+
+        # reward digits and typical numeric punctuation
+        good = sum(1 for c in dec if c.isdigit() or c in "-.,+ ")
+        score += good * 10
+
+        # penalize weird punctuation outputs
+        bad = sum(1 for c in dec if c in "?!@#$%^&*_=|~")
+        score -= bad * 50
+
+        # extra reward if it contains a decimal and digits (common in prices)
+        if "." in dec and any(c.isdigit() for c in dec):
+            score += 800
+
+    return score
 
 
 def init_decoder_from_html(html: str) -> None:
+    """
+    Robust init:
+    - tries old regex
+    - tries literal-before-charAt
+    - tries var assignment + var.charAt
+    - picks best MAP by scoring test decode
+    """
     global MAP, MAP_BASE
-    m = F_MAP_RE.search(html)
-    if not m:
-        print("⚠️ Could not extract decoder MAP/BASE from HTML. Using fallback.")
+
+    # First: old extractor if it matches
+    m_old = F_MAP_RE_OLD.search(html)
+    if m_old:
+        MAP = m_old.group(1)
+        MAP_BASE = int(m_old.group(2))
+        return
+
+    # Otherwise: robust extract
+    base = _extract_base(html)
+    test_encoded = _extract_test_encoded(html)
+
+    candidates: list[str] = []
+    candidates += _extract_maps_literal_charat(html)
+    candidates += _extract_maps_var_assignment(html)
+
+    if not candidates:
+        print("⚠️ Could not extract decoder MAP from HTML. Using fallback MAP.")
         if not MAP:
             MAP = " 7032,-5.4981+6"
+        MAP_BASE = base
         return
-    MAP = m.group(1)
-    MAP_BASE = int(m.group(2))
+
+    best = max(candidates, key=lambda s: _score_map(s, base, test_encoded))
+    MAP = best
+    MAP_BASE = base
 
 
 def decode_f(encoded: str) -> str:
@@ -104,6 +226,17 @@ def decode_f(encoded: str) -> str:
         if 0 <= idx < len(MAP):
             out.append(MAP[idx])
     return "".join(out).strip()
+
+
+def decode_f_number(encoded: str) -> str:
+    """
+    Safe decode for numeric fields (prices/pips).
+    Raises if decode doesn't look numeric.
+    """
+    s = decode_f(encoded)
+    if not NUM_LIKE_RE.match(s):
+        raise ValueError(f"Bad decode (MAP/BASE mismatch): {s!r}")
+    return s
 
 
 def fetch_html(url: str) -> str:
@@ -305,7 +438,12 @@ def extract_value(value_el) -> str:
     if script:
         m = F_ENC_RE.search(script.get_text(strip=True))
         if m:
-            return decode_f(m.group(1))
+            enc = m.group(2)  # because F_ENC_RE now captures quotes + content
+            # Try strict numeric decode first; fallback to normal decode if needed
+            try:
+                return decode_f_number(enc)
+            except Exception:
+                return decode_f(enc)
 
     txt = value_el.get_text(" ", strip=True)
     txt = re.sub(r"\s+", " ", txt).strip()
