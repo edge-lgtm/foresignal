@@ -85,17 +85,17 @@
   },
   {
     "pair": "USD/CAD",
-    "status": "Filled",
-    "from_ts": 1771582020,
-    "till_ts": 1771596420,
+    "status": "",
+    "from_ts": null,
+    "till_ts": null,
     "sell_at": "",
     "buy_at": "",
-    "bought_at": "1.3684",
-    "sold_at": "1.3700",
+    "bought_at": "",
+    "sold_at": "",
     "take_profit_at": "",
     "stop_loss_at": "",
-    "pips": 16,
-    "key": "USD/CAD|1771582020|1771596420"
+    "pips": null,
+    "key": "USD/CAD|0|0"
   },
   {
     "pair": "USD/CHF",
