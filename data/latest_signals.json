@@ -15,16 +15,16 @@
   },
   {
     "pair": "EUR/JPY",
-    "status": "Sell",
+    "status": "Filled",
     "from_ts": 1771812900,
     "till_ts": 1771834500,
-    "sell_at": "182.34",
+    "sell_at": "",
     "buy_at": "",
-    "bought_at": "",
-    "sold_at": "",
-    "take_profit_at": "182.07",
-    "stop_loss_at": "182.68",
-    "pips": null,
+    "bought_at": "182.68",
+    "sold_at": "182.34",
+    "take_profit_at": "",
+    "stop_loss_at": "",
+    "pips": -34,
     "key": "EUR/JPY|1771812900|1771834500"
   },
   {
@@ -85,6 +85,34 @@
   },
   {
     "pair": "USD/CAD",
+    "status": "Sell",
+    "from_ts": 1771829580,
+    "till_ts": 1771858380,
+    "sell_at": "1.3671",
+    "buy_at": "",
+    "bought_at": "",
+    "sold_at": "",
+    "take_profit_at": "1.3651",
+    "stop_loss_at": "1.3696",
+    "pips": null,
+    "key": "USD/CAD|1771829580|1771858380"
+  },
+  {
+    "pair": "USD/CHF",
+    "status": "Filled",
+    "from_ts": 1771816380,
+    "till_ts": 1771837980,
+    "sell_at": "",
+    "buy_at": "",
+    "bought_at": "0.7717",
+    "sold_at": "0.7729",
+    "take_profit_at": "",
+    "stop_loss_at": "",
+    "pips": 12,
+    "key": "USD/CHF|1771816380|1771837980"
+  },
+  {
+    "pair": "USD/JPY",
     "status": "",
     "from_ts": null,
     "till_ts": null,
@@ -95,34 +123,6 @@
     "take_profit_at": "",
     "stop_loss_at": "",
     "pips": null,
-    "key": "USD/CAD|0|0"
-  },
-  {
-    "pair": "USD/CHF",
-    "status": "Buy",
-    "from_ts": 1771816380,
-    "till_ts": 1771837980,
-    "sell_at": "",
-    "buy_at": "0.7717",
-    "bought_at": "",
-    "sold_at": "",
-    "take_profit_at": "0.7729",
-    "stop_loss_at": "0.7702",
-    "pips": null,
-    "key": "USD/CHF|1771816380|1771837980"
-  },
-  {
-    "pair": "USD/JPY",
-    "status": "Filled",
-    "from_ts": 1771811940,
-    "till_ts": 1771826340,
-    "sell_at": "",
-    "buy_at": "",
-    "bought_at": "154.42",
-    "sold_at": "154.23",
-    "take_profit_at": "",
-    "stop_loss_at": "",
-    "pips": -19,
-    "key": "USD/JPY|1771811940|1771826340"
+    "key": "USD/JPY|0|0"
   }
 ]
