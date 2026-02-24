@@ -113,16 +113,16 @@
   },
   {
     "pair": "USD/JPY",
-    "status": "Sell",
+    "status": "Filled",
     "from_ts": 1771925220,
     "till_ts": 1771939620,
-    "sell_at": "155.86",
+    "sell_at": "",
     "buy_at": "",
-    "bought_at": "",
-    "sold_at": "",
-    "take_profit_at": "155.42",
-    "stop_loss_at": "156.41",
-    "pips": null,
+    "bought_at": "155.95",
+    "sold_at": "155.86",
+    "take_profit_at": "",
+    "stop_loss_at": "",
+    "pips": -9,
     "key": "USD/JPY|1771925220|1771939620"
   }
 ]
