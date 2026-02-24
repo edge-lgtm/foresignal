@@ -99,7 +99,7 @@
   },
   {
     "pair": "USD/CHF",
-    "status": "Buy",
+    "status": "Cancelled",
     "from_ts": 1771931760,
     "till_ts": 1771946160,
     "sell_at": "",
