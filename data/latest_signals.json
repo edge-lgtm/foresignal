@@ -15,17 +15,17 @@
   },
   {
     "pair": "EUR/JPY",
-    "status": "",
-    "from_ts": null,
-    "till_ts": null,
+    "status": "Buy",
+    "from_ts": 1772485140,
+    "till_ts": 1772506740,
     "sell_at": "",
-    "buy_at": "",
+    "buy_at": "183.86",
     "bought_at": "",
     "sold_at": "",
-    "take_profit_at": "",
-    "stop_loss_at": "",
+    "take_profit_at": "184.17",
+    "stop_loss_at": "183.47",
     "pips": null,
-    "key": "EUR/JPY|0|0"
+    "key": "EUR/JPY|1772485140|1772506740"
   },
   {
     "pair": "EUR/USD",
