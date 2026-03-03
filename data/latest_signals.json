@@ -1,17 +1,17 @@
 [
   {
     "pair": "AUD/USD",
-    "status": "",
-    "from_ts": null,
-    "till_ts": null,
+    "status": "Buy",
+    "from_ts": 1772551560,
+    "till_ts": 1772565960,
     "sell_at": "",
-    "buy_at": "",
+    "buy_at": "0.6955",
     "bought_at": "",
     "sold_at": "",
-    "take_profit_at": "",
-    "stop_loss_at": "",
+    "take_profit_at": "0.6982",
+    "stop_loss_at": "0.6921",
     "pips": null,
-    "key": "AUD/USD|0|0"
+    "key": "AUD/USD|1772551560|1772565960"
   },
   {
     "pair": "EUR/JPY",
