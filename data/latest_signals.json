@@ -43,7 +43,7 @@
   },
   {
     "pair": "GBP/CHF",
-    "status": "Buy",
+    "status": "Cancelled",
     "from_ts": 1772607600,
     "till_ts": 1772622000,
     "sell_at": "",
