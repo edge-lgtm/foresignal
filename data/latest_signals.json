@@ -99,17 +99,17 @@
   },
   {
     "pair": "USD/CHF",
-    "status": "Filled",
-    "from_ts": 1773020040,
-    "till_ts": 1773034440,
+    "status": "",
+    "from_ts": null,
+    "till_ts": null,
     "sell_at": "",
     "buy_at": "",
-    "bought_at": "0.7792",
-    "sold_at": "0.7819",
+    "bought_at": "",
+    "sold_at": "",
     "take_profit_at": "",
     "stop_loss_at": "",
-    "pips": 27,
-    "key": "USD/CHF|1773020040|1773034440"
+    "pips": null,
+    "key": "USD/CHF|0|0"
   },
   {
     "pair": "USD/JPY",
