@@ -85,17 +85,17 @@
   },
   {
     "pair": "USD/CAD",
-    "status": "",
-    "from_ts": null,
-    "till_ts": null,
+    "status": "Buy",
+    "from_ts": 1773073560,
+    "till_ts": 1773102360,
     "sell_at": "",
-    "buy_at": "",
+    "buy_at": "1.3568",
     "bought_at": "",
     "sold_at": "",
-    "take_profit_at": "",
-    "stop_loss_at": "",
+    "take_profit_at": "1.3588",
+    "stop_loss_at": "1.3543",
     "pips": null,
-    "key": "USD/CAD|0|0"
+    "key": "USD/CAD|1773073560|1773102360"
   },
   {
     "pair": "USD/CHF",
