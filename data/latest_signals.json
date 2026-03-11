@@ -71,16 +71,16 @@
   },
   {
     "pair": "NZD/USD",
-    "status": "Buy",
+    "status": "Filled",
     "from_ts": 1773212280,
     "till_ts": 1773226680,
     "sell_at": "",
-    "buy_at": "0.5940",
-    "bought_at": "",
-    "sold_at": "",
-    "take_profit_at": "0.5959",
-    "stop_loss_at": "0.5916",
-    "pips": null,
+    "buy_at": "",
+    "bought_at": "0.5940",
+    "sold_at": "0.5933",
+    "take_profit_at": "",
+    "stop_loss_at": "",
+    "pips": -7,
     "key": "NZD/USD|1773212280|1773226680"
   },
   {
@@ -99,17 +99,17 @@
   },
   {
     "pair": "USD/CHF",
-    "status": "",
-    "from_ts": null,
-    "till_ts": null,
-    "sell_at": "",
+    "status": "Sell",
+    "from_ts": 1773226560,
+    "till_ts": 1773240960,
+    "sell_at": "0.7793",
     "buy_at": "",
     "bought_at": "",
     "sold_at": "",
-    "take_profit_at": "",
-    "stop_loss_at": "",
+    "take_profit_at": "0.7759",
+    "stop_loss_at": "0.7835",
     "pips": null,
-    "key": "USD/CHF|0|0"
+    "key": "USD/CHF|1773226560|1773240960"
   },
   {
     "pair": "USD/JPY",
