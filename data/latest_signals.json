@@ -85,7 +85,7 @@
   },
   {
     "pair": "USD/CAD",
-    "status": "Buy",
+    "status": "Cancelled",
     "from_ts": 1773376260,
     "till_ts": 1773405060,
     "sell_at": "",
