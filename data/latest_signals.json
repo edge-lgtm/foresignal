@@ -29,7 +29,7 @@
   },
   {
     "pair": "EUR/USD",
-    "status": "Buy",
+    "status": "Cancelled",
     "from_ts": 1773652380,
     "till_ts": 1773666780,
     "sell_at": "",
