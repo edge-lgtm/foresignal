@@ -29,17 +29,17 @@
   },
   {
     "pair": "EUR/USD",
-    "status": "Filled",
-    "from_ts": 1773838020,
-    "till_ts": 1773852420,
+    "status": "",
+    "from_ts": null,
+    "till_ts": null,
     "sell_at": "",
     "buy_at": "",
-    "bought_at": "1.1509",
-    "sold_at": "1.1517",
+    "bought_at": "",
+    "sold_at": "",
     "take_profit_at": "",
     "stop_loss_at": "",
-    "pips": 8,
-    "key": "EUR/USD|1773838020|1773852420"
+    "pips": null,
+    "key": "EUR/USD|0|0"
   },
   {
     "pair": "GBP/CHF",
@@ -113,16 +113,16 @@
   },
   {
     "pair": "USD/JPY",
-    "status": "",
-    "from_ts": null,
-    "till_ts": null,
-    "sell_at": "",
+    "status": "Sell",
+    "from_ts": 1773854700,
+    "till_ts": 1773876300,
+    "sell_at": "159.53",
     "buy_at": "",
     "bought_at": "",
     "sold_at": "",
-    "take_profit_at": "",
-    "stop_loss_at": "",
+    "take_profit_at": "159.35",
+    "stop_loss_at": "159.75",
     "pips": null,
-    "key": "USD/JPY|0|0"
+    "key": "USD/JPY|1773854700|1773876300"
   }
 ]
