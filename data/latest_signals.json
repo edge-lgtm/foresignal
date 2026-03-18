@@ -57,17 +57,17 @@
   },
   {
     "pair": "GBP/USD",
-    "status": "",
-    "from_ts": null,
-    "till_ts": null,
+    "status": "Buy",
+    "from_ts": 1773846840,
+    "till_ts": 1773861240,
     "sell_at": "",
-    "buy_at": "",
+    "buy_at": "1.3320",
     "bought_at": "",
     "sold_at": "",
-    "take_profit_at": "",
-    "stop_loss_at": "",
+    "take_profit_at": "1.3341",
+    "stop_loss_at": "1.3294",
     "pips": null,
-    "key": "GBP/USD|0|0"
+    "key": "GBP/USD|1773846840|1773861240"
   },
   {
     "pair": "NZD/USD",
