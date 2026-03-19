@@ -1,16 +1,16 @@
 [
   {
     "pair": "AUD/USD",
-    "status": "Sell",
+    "status": "Filled",
     "from_ts": 1773951960,
     "till_ts": 1773966360,
-    "sell_at": "0.7091",
+    "sell_at": "",
     "buy_at": "",
-    "bought_at": "",
-    "sold_at": "",
-    "take_profit_at": "0.7071",
-    "stop_loss_at": "0.7115",
-    "pips": null,
+    "bought_at": "0.7115",
+    "sold_at": "0.7091",
+    "take_profit_at": "",
+    "stop_loss_at": "",
+    "pips": -24,
     "key": "AUD/USD|1773951960|1773966360"
   },
   {
@@ -57,7 +57,7 @@
   },
   {
     "pair": "GBP/USD",
-    "status": "Buy",
+    "status": "Cancelled",
     "from_ts": 1773939600,
     "till_ts": 1773954000,
     "sell_at": "",
