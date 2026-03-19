@@ -57,7 +57,7 @@
   },
   {
     "pair": "GBP/USD",
-    "status": "Sell",
+    "status": "Cancelled",
     "from_ts": 1773892140,
     "till_ts": 1773906540,
     "sell_at": "1.3293",
