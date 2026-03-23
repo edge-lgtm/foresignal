@@ -1,7 +1,7 @@
 [
   {
     "pair": "AUD/USD",
-    "status": "Buy",
+    "status": "Cancelled",
     "from_ts": 1774271280,
     "till_ts": 1774285680,
     "sell_at": "",
