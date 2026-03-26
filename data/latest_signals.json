@@ -57,17 +57,17 @@
   },
   {
     "pair": "GBP/USD",
-    "status": "Filled",
-    "from_ts": 1774477260,
-    "till_ts": 1774498860,
+    "status": "",
+    "from_ts": null,
+    "till_ts": null,
     "sell_at": "",
     "buy_at": "",
-    "bought_at": "1.3356",
-    "sold_at": "1.3368",
+    "bought_at": "",
+    "sold_at": "",
     "take_profit_at": "",
     "stop_loss_at": "",
-    "pips": 12,
-    "key": "GBP/USD|1774477260|1774498860"
+    "pips": null,
+    "key": "GBP/USD|0|0"
   },
   {
     "pair": "NZD/USD",
@@ -85,17 +85,17 @@
   },
   {
     "pair": "USD/CAD",
-    "status": "",
-    "from_ts": null,
-    "till_ts": null,
-    "sell_at": "",
+    "status": "Sell",
+    "from_ts": 1774504320,
+    "till_ts": 1774533120,
+    "sell_at": "1.3828",
     "buy_at": "",
     "bought_at": "",
     "sold_at": "",
-    "take_profit_at": "",
-    "stop_loss_at": "",
+    "take_profit_at": "1.3809",
+    "stop_loss_at": "1.3852",
     "pips": null,
-    "key": "USD/CAD|0|0"
+    "key": "USD/CAD|1774504320|1774533120"
   },
   {
     "pair": "USD/CHF",
