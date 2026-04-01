@@ -1,16 +1,16 @@
 [
   {
     "pair": "AUD/USD",
-    "status": "Buy",
+    "status": "Filled",
     "from_ts": 1774987920,
     "till_ts": 1775002320,
     "sell_at": "",
-    "buy_at": "0.6892",
-    "bought_at": "",
-    "sold_at": "",
-    "take_profit_at": "0.6912",
-    "stop_loss_at": "0.6867",
-    "pips": null,
+    "buy_at": "",
+    "bought_at": "0.6892",
+    "sold_at": "0.6922",
+    "take_profit_at": "",
+    "stop_loss_at": "",
+    "pips": 30,
     "key": "AUD/USD|1774987920|1775002320"
   },
   {
@@ -113,16 +113,16 @@
   },
   {
     "pair": "USD/JPY",
-    "status": "Sell",
+    "status": "Filled",
     "from_ts": 1774993320,
     "till_ts": 1775007720,
-    "sell_at": "158.77",
+    "sell_at": "",
     "buy_at": "",
-    "bought_at": "",
-    "sold_at": "",
-    "take_profit_at": "158.52",
-    "stop_loss_at": "159.09",
-    "pips": null,
+    "bought_at": "158.52",
+    "sold_at": "158.77",
+    "take_profit_at": "",
+    "stop_loss_at": "",
+    "pips": 25,
     "key": "USD/JPY|1774993320|1775007720"
   }
 ]
