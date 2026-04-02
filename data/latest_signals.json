@@ -1,7 +1,7 @@
 [
   {
     "pair": "AUD/USD",
-    "status": "Sell",
+    "status": "Cancelled",
     "from_ts": 1775099160,
     "till_ts": 1775113560,
     "sell_at": "0.6894",
@@ -15,17 +15,17 @@
   },
   {
     "pair": "EUR/JPY",
-    "status": "Filled",
-    "from_ts": 1775095860,
-    "till_ts": 1775117460,
+    "status": "",
+    "from_ts": null,
+    "till_ts": null,
     "sell_at": "",
     "buy_at": "",
-    "bought_at": "183.76",
-    "sold_at": "184.08",
+    "bought_at": "",
+    "sold_at": "",
     "take_profit_at": "",
     "stop_loss_at": "",
-    "pips": 32,
-    "key": "EUR/JPY|1775095860|1775117460"
+    "pips": null,
+    "key": "EUR/JPY|0|0"
   },
   {
     "pair": "EUR/USD",
