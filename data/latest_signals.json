@@ -71,7 +71,7 @@
   },
   {
     "pair": "NZD/USD",
-    "status": "Sell",
+    "status": "Cancelled",
     "from_ts": 1775102040,
     "till_ts": 1775116440,
     "sell_at": "0.5720",
