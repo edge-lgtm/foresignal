@@ -1,16 +1,16 @@
 [
   {
     "pair": "AUD/USD",
-    "status": "Buy",
+    "status": "Filled",
     "from_ts": 1775191800,
     "till_ts": 1775206200,
     "sell_at": "",
-    "buy_at": "0.6903",
-    "bought_at": "",
-    "sold_at": "",
-    "take_profit_at": "0.6915",
-    "stop_loss_at": "0.6888",
-    "pips": null,
+    "buy_at": "",
+    "bought_at": "0.6903",
+    "sold_at": "0.6915",
+    "take_profit_at": "",
+    "stop_loss_at": "",
+    "pips": 12,
     "key": "AUD/USD|1775191800|1775206200"
   },
   {
@@ -71,16 +71,16 @@
   },
   {
     "pair": "NZD/USD",
-    "status": "Sell",
+    "status": "Filled",
     "from_ts": 1775188140,
     "till_ts": 1775202540,
-    "sell_at": "0.5713",
+    "sell_at": "",
     "buy_at": "",
-    "bought_at": "",
-    "sold_at": "",
-    "take_profit_at": "0.5703",
-    "stop_loss_at": "0.5725",
-    "pips": null,
+    "bought_at": "0.5711",
+    "sold_at": "0.5713",
+    "take_profit_at": "",
+    "stop_loss_at": "",
+    "pips": 2,
     "key": "NZD/USD|1775188140|1775202540"
   },
   {
