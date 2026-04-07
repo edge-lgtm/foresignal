@@ -113,7 +113,7 @@
   },
   {
     "pair": "USD/JPY",
-    "status": "Buy",
+    "status": "Cancelled",
     "from_ts": 1775517060,
     "till_ts": 1775545860,
     "sell_at": "",
