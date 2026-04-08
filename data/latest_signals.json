@@ -1,16 +1,16 @@
 [
   {
     "pair": "AUD/USD",
-    "status": "Buy",
+    "status": "Filled",
     "from_ts": 1775665380,
     "till_ts": 1775679780,
     "sell_at": "",
-    "buy_at": "0.7048",
-    "bought_at": "",
-    "sold_at": "",
-    "take_profit_at": "0.7065",
-    "stop_loss_at": "0.7026",
-    "pips": null,
+    "buy_at": "",
+    "bought_at": "0.7048",
+    "sold_at": "0.7051",
+    "take_profit_at": "",
+    "stop_loss_at": "",
+    "pips": 3,
     "key": "AUD/USD|1775665380|1775679780"
   },
   {
