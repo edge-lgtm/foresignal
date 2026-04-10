@@ -85,16 +85,16 @@
   },
   {
     "pair": "USD/CAD",
-    "status": "Buy",
+    "status": "Filled",
     "from_ts": 1775814360,
     "till_ts": 1775835960,
     "sell_at": "",
-    "buy_at": "1.3832",
-    "bought_at": "",
-    "sold_at": "",
-    "take_profit_at": "1.3854",
-    "stop_loss_at": "1.3805",
-    "pips": null,
+    "buy_at": "",
+    "bought_at": "1.3832",
+    "sold_at": "1.3805",
+    "take_profit_at": "",
+    "stop_loss_at": "",
+    "pips": -27,
     "key": "USD/CAD|1775814360|1775835960"
   },
   {
