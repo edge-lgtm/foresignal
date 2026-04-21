@@ -29,16 +29,16 @@
   },
   {
     "pair": "EUR/USD",
-    "status": "Sell",
+    "status": "Filled",
     "from_ts": 1776794520,
     "till_ts": 1776823320,
-    "sell_at": "1.1749",
+    "sell_at": "",
     "buy_at": "",
-    "bought_at": "",
-    "sold_at": "",
-    "take_profit_at": "1.1734",
-    "stop_loss_at": "1.1768",
-    "pips": null,
+    "bought_at": "1.1734",
+    "sold_at": "1.1749",
+    "take_profit_at": "",
+    "stop_loss_at": "",
+    "pips": 15,
     "key": "EUR/USD|1776794520|1776823320"
   },
   {
