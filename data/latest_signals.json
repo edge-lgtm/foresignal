@@ -71,16 +71,16 @@
   },
   {
     "pair": "NZD/USD",
-    "status": "Buy",
+    "status": "Filled",
     "from_ts": 1777401420,
     "till_ts": 1777423020,
     "sell_at": "",
-    "buy_at": "0.5884",
-    "bought_at": "",
-    "sold_at": "",
-    "take_profit_at": "0.5893",
-    "stop_loss_at": "0.5873",
-    "pips": null,
+    "buy_at": "",
+    "bought_at": "0.5884",
+    "sold_at": "0.5893",
+    "take_profit_at": "",
+    "stop_loss_at": "",
+    "pips": 9,
     "key": "NZD/USD|1777401420|1777423020"
   },
   {
