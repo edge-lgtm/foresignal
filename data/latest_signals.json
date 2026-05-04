@@ -57,16 +57,16 @@
   },
   {
     "pair": "GBP/USD",
-    "status": "Buy",
+    "status": "Filled",
     "from_ts": 1777919520,
     "till_ts": 1777948320,
     "sell_at": "",
-    "buy_at": "1.3526",
-    "bought_at": "",
-    "sold_at": "",
-    "take_profit_at": "1.3543",
-    "stop_loss_at": "1.3504",
-    "pips": null,
+    "buy_at": "",
+    "bought_at": "1.3526",
+    "sold_at": "1.3543",
+    "take_profit_at": "",
+    "stop_loss_at": "",
+    "pips": 17,
     "key": "GBP/USD|1777919520|1777948320"
   },
   {
